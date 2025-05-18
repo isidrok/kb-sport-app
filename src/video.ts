@@ -63,6 +63,13 @@ export class Camera {
   }
 
   /**
+   * Disposes all resources
+   */
+  dispose(): void {
+    this.stop();
+  }
+
+  /**
    * Gets the current video element
    */
   getVideo(): HTMLVideoElement {

@@ -38,13 +38,19 @@ const DEFAULT_WHITEBOARD_OPTIONS: Partial<WhiteboardOptions> = {
 export class Whiteboard {
   private ctx: CanvasRenderingContext2D;
   private options: WhiteboardOptions;
+  private canvas: HTMLCanvasElement;
 
   constructor(canvas: HTMLCanvasElement, options: WhiteboardOptions) {
     if (!options.width || !options.height) {
       throw new Error("width and height are required");
     }
+    this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
     this.options = deepMerge(options, DEFAULT_WHITEBOARD_OPTIONS);
+  }
+
+  dispose() {
+    this.clear();
   }
 
   /**

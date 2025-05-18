@@ -10,6 +10,7 @@ export interface PoseTrackerOptions {
   model: ModelOptions;
   whiteboard?: Partial<WhiteboardOptions>;
   camera?: Partial<CameraOptions>;
+  flipVideo?: boolean;
 }
 
 export class PoseTracker {
@@ -18,8 +19,10 @@ export class PoseTracker {
   private model: YoloV8NPoseModel;
   private isRunning: boolean = false;
   private animationFrameId: number | null = null;
+  private options: PoseTrackerOptions;
 
   constructor(options: PoseTrackerOptions) {
+    this.options = options;
     this.camera = new Camera(options.videoElement, {
       width: options.width,
       height: options.height,
@@ -28,9 +31,9 @@ export class PoseTracker {
     this.whiteboard = new Whiteboard(options.canvasElement, {
       width: options.width,
       height: options.height,
+      flipVideo: options.flipVideo,
       ...options.whiteboard,
     });
-
     this.model = new YoloV8NPoseModel(options.model);
   }
 
@@ -53,7 +56,7 @@ export class PoseTracker {
   }
 
   /**
-   * Stops the pose tracking
+   * Stops the pose tracking and cleans up resources
    */
   stop(): void {
     if (!this.isRunning) return;
@@ -64,6 +67,16 @@ export class PoseTracker {
       this.animationFrameId = null;
     }
     this.camera.stop();
+  }
+
+  /**
+   * Disposes all resources
+   */
+  dispose(): void {
+    this.stop();
+    this.camera.dispose();
+    this.whiteboard.dispose();
+    this.model.dispose();
   }
 
   /**
@@ -98,9 +111,11 @@ export class PoseTracker {
   private processKeypoints(
     keypointsData: Float32Array | Int32Array | Uint8Array
   ): number[][] {
+    const { flipVideo, width } = this.options;
     const processedKeypoints = [];
     for (let i = 0; i < 17; i++) {
-      const x = keypointsData[i * 3];
+      // Flip x coordinate for keypoints to match flipped video
+      const x = flipVideo ? width - keypointsData[i * 3] : keypointsData[i * 3];
       const y = keypointsData[i * 3 + 1];
       const conf = keypointsData[i * 3 + 2];
       processedKeypoints.push([x, y, conf]);

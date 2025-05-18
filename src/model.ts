@@ -46,6 +46,12 @@ export class YoloV8NPoseModel {
     });
   }
 
+  dispose() {
+    if (this.model) {
+      this.model.dispose();
+    }
+  }
+
   /**
    * Returns a frame from the video.
    * YOLOv8n-pose expects input in the shape [batch_size, height, width, channels]
