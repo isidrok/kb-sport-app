@@ -14,28 +14,24 @@ import {
   type Tensor3D,
 } from "@tensorflow/tfjs";
 
-class Model {
+export class YoloV8NPoseModel {
   private model!: GraphModel;
-  private inputShape!: [number, number, number, number];
+  private inputShape!: number[];
 
-  async init() {
-    const modelURL = "yolo8n-pose_web_model/model.json";
-    console.log("Loading model from:", modelURL);
+  async init(modelURL: string) {
     this.model = await loadGraphModel(modelURL, {
       onProgress: (fraction) => {
         console.log(`Loading model`, fraction);
       },
     });
-    this.inputShape = this.model.inputs[0].shape as [
-      number,
-      number,
-      number,
-      number
-    ];
+    this.inputShape = this.model.inputs[0].shape!;
   }
   process(video: HTMLVideoElement) {
-    const frame = this.getFrame(video);
-    const predictions = this.model.predict(frame) as Tensor;
+    return tidy(() => {
+      const frame = this.getFrame(video);
+      const predictions = this.model.predict(frame) as Tensor;
+      return this.getBestDetection(predictions);
+    });
   }
   /**
    * Returns a frame from the video.
@@ -67,6 +63,64 @@ class Model {
       ]);
       const batched = resized.expandDims(0);
       return batched;
+    });
+  }
+  private getBestDetection(predictions: Tensor) {
+    return tidy(() => {
+      // Step 1: Transpose predictions to match expected format
+      // Original shape: [1, 56, 8400] -> [1, 8400, 56]
+      const transpose = predictions.transpose([0, 2, 1]);
+      console.log("Transposed shape:", transpose.shape);
+
+      // Step 2: Extract box coordinates and convert to [x1, y1, x2, y2] format
+      const w = slice(transpose, [0, 0, 2], [-1, -1, 1]); // width
+      const h = slice(transpose, [0, 0, 3], [-1, -1, 1]); // height
+      const x1 = sub(slice(transpose, [0, 0, 0], [-1, -1, 1]), div(w, 2)); // x1 = x - w/2
+      const y1 = sub(slice(transpose, [0, 0, 1], [-1, -1, 1]), div(h, 2)); // y1 = y - h/2
+      const x2 = add(x1, w); // x2 = x1 + width
+      const y2 = add(y1, h); // y2 = y1 + height
+
+      // Step 3: Extract confidence scores
+      const scores = slice(transpose, [0, 0, 4], [-1, -1, 1]);
+
+      // Step 4: Extract keypoints
+      const keypoints = slice(transpose, [0, 0, 5], [-1, -1, -1]);
+
+      // Step 5: Get the best detection
+      const scoresData = scores.dataSync();
+      const maxScoreIndex = scoresData.indexOf(Math.max(...scoresData));
+      console.log(
+        "Best detection index:",
+        maxScoreIndex,
+        "score:",
+        scoresData[maxScoreIndex]
+      );
+
+      // Step 6: Get the box, score, and keypoints for the best detection
+      const bestBox = squeeze(
+        concat(
+          [
+            slice(x1, [0, maxScoreIndex, 0], [1, 1, 1]),
+            slice(y1, [0, maxScoreIndex, 0], [1, 1, 1]),
+            slice(x2, [0, maxScoreIndex, 0], [1, 1, 1]),
+            slice(y2, [0, maxScoreIndex, 0], [1, 1, 1]),
+          ],
+          2
+        )
+      );
+
+      const bestScore = squeeze(
+        slice(scores, [0, maxScoreIndex, 0], [1, 1, 1])
+      );
+      const bestKeypoints = squeeze(
+        slice(keypoints, [0, maxScoreIndex, 0], [1, 1, -1])
+      );
+
+      return {
+        box: bestBox,
+        score: bestScore,
+        keypoints: bestKeypoints,
+      };
     });
   }
 }

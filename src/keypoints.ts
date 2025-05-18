@@ -2,7 +2,7 @@
  * Maps keypoint names to their corresponding indices in the YOLOv8 pose detection output.
  * YOLOv8 uses the COCO keypoint format with 17 keypoints.
  */
-export const keypoints = {
+export const keypointNames = {
   nose: 0,
   left_eye: 1,
   right_eye: 2,
@@ -23,20 +23,20 @@ export const keypoints = {
 } as const;
 
 export const keypointConnections = [
-  [keypoints.left_shoulder, keypoints.left_elbow],
-  [keypoints.left_elbow, keypoints.left_wrist],
-  [keypoints.right_shoulder, keypoints.right_elbow],
-  [keypoints.right_elbow, keypoints.right_wrist],
-  [keypoints.left_shoulder, keypoints.right_shoulder],
-  [keypoints.left_hip, keypoints.left_knee],
-  [keypoints.left_knee, keypoints.left_ankle],
-  [keypoints.right_hip, keypoints.right_knee],
-  [keypoints.right_knee, keypoints.right_ankle],
-  [keypoints.left_hip, keypoints.right_hip],
-  [keypoints.left_shoulder, keypoints.left_hip],
-  [keypoints.right_shoulder, keypoints.right_hip],
-  [keypoints.nose, keypoints.left_eye],
-  [keypoints.left_eye, keypoints.left_ear],
-  [keypoints.nose, keypoints.right_eye],
-  [keypoints.right_eye, keypoints.right_ear],
+  [keypointNames.left_shoulder, keypointNames.left_elbow],
+  [keypointNames.left_elbow, keypointNames.left_wrist],
+  [keypointNames.right_shoulder, keypointNames.right_elbow],
+  [keypointNames.right_elbow, keypointNames.right_wrist],
+  [keypointNames.left_shoulder, keypointNames.right_shoulder],
+  [keypointNames.left_hip, keypointNames.left_knee],
+  [keypointNames.left_knee, keypointNames.left_ankle],
+  [keypointNames.right_hip, keypointNames.right_knee],
+  [keypointNames.right_knee, keypointNames.right_ankle],
+  [keypointNames.left_hip, keypointNames.right_hip],
+  [keypointNames.left_shoulder, keypointNames.left_hip],
+  [keypointNames.right_shoulder, keypointNames.right_hip],
+  [keypointNames.nose, keypointNames.left_eye],
+  [keypointNames.left_eye, keypointNames.left_ear],
+  [keypointNames.nose, keypointNames.right_eye],
+  [keypointNames.right_eye, keypointNames.right_ear],
 ] as const;
