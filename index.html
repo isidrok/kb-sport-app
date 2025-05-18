@@ -12,6 +12,10 @@
         height: 640px;
         margin: 0 auto;
       }
+      #video {
+        width: 100%;
+        height: 100%;
+      }
       #canvas {
         position: absolute;
         top: 0;
@@ -25,6 +29,11 @@
         padding: 10px 20px;
         font-size: 16px;
         cursor: pointer;
+      }
+      #counter {
+        text-align: center;
+        font-size: 24px;
+        margin: 10px 0;
       }
     </style>
   </head>
@@ -40,6 +49,7 @@
       ></video>
       <canvas id="canvas" width="480" height="640"></canvas>
     </div>
+    <div id="counter">Repetitions: 0</div>
     <button id="go">Start</button>
     <script type="module" src="/src/main.ts"></script>
   </body>

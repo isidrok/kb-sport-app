@@ -1,4 +1,4 @@
-import { Camera, type CameraOptions } from "./video";
+import { Camera, type CameraOptions } from "./camera";
 import { Whiteboard, type WhiteboardOptions } from "./whiteboard";
 import { YoloV8NPoseModel, type ModelOptions } from "./model";
 
@@ -8,6 +8,7 @@ export interface PoseTrackerOptions {
   videoElement: HTMLVideoElement;
   canvasElement: HTMLCanvasElement;
   model: ModelOptions;
+  onPose?: (keypoints: number[][]) => void;
   whiteboard?: Partial<WhiteboardOptions>;
   camera?: Partial<CameraOptions>;
   flipVideo?: boolean;
@@ -92,15 +93,15 @@ export class PoseTracker {
     try {
       const keypointsData = await result.keypoints.data();
       keypoints = this.processKeypoints(keypointsData);
+      this.options.onPose?.(keypoints);
+      this.whiteboard.drawFrame(video, keypoints);
+      this.animationFrameId = requestAnimationFrame(() => this.processFrame());
     } finally {
       // Clean up tensors
       result.box.dispose();
       result.score.dispose();
       result.keypoints.dispose();
     }
-
-    this.whiteboard.drawFrame(video, keypoints);
-    this.animationFrameId = requestAnimationFrame(() => this.processFrame());
   }
 
   /**
