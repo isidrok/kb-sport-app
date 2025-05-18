@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pose Detection</title>
+    <style>
+      .container {
+        position: relative;
+        width: 640px;
+        height: 640px;
+        margin: 0 auto;
+      }
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #go {
+        display: block;
+        margin: 10px auto;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <video
+        id="video"
+        autoplay="true"
+        playsinline="true"
+        muted="true"
+        width="640"
+        height="640"
+      ></video>
+      <canvas id="canvas"></canvas>
+    </div>
+    <button id="go">Start</button>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
