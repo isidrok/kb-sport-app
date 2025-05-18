@@ -1,5 +1,5 @@
 {
-  "name": "kb-tracking",
+  "name": "pose-tracking-web",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
