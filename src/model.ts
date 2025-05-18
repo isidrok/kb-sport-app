@@ -14,18 +14,30 @@ import {
   type Tensor3D,
 } from "@tensorflow/tfjs";
 
+export interface ModelOptions {
+  modelURL: string;
+  onProgress?: (fraction: number) => void;
+}
+
 export class YoloV8NPoseModel {
   private model!: GraphModel;
   private inputShape!: number[];
+  private options: ModelOptions;
 
-  async init(modelURL: string) {
-    this.model = await loadGraphModel(modelURL, {
-      onProgress: (fraction) => {
-        console.log(`Loading model`, fraction);
-      },
+  constructor(options: ModelOptions) {
+    if (!options.modelURL) {
+      throw new Error("modelURL is required");
+    }
+    this.options = options;
+  }
+
+  async init() {
+    this.model = await loadGraphModel(this.options.modelURL, {
+      onProgress: this.options.onProgress,
     });
     this.inputShape = this.model.inputs[0].shape!;
   }
+
   process(video: HTMLVideoElement) {
     return tidy(() => {
       const frame = this.getFrame(video);
@@ -33,12 +45,13 @@ export class YoloV8NPoseModel {
       return this.getBestDetection(predictions);
     });
   }
+
   /**
    * Returns a frame from the video.
    * YOLOv8n-pose expects input in the shape [batch_size, height, width, channels]
    * The input needs to be:
    * 1. Padded to be square if the input isn't already square
-   * 2. Resized to 640x640
+   * 2. Resized to inputSize x inputSize
    * 3. Normalized to values between 0 and 1 (divided by 255)
    * 4. Have a batch dimension added
    * @param video - The video to get a frame from.
@@ -70,7 +83,6 @@ export class YoloV8NPoseModel {
       // Step 1: Transpose predictions to match expected format
       // Original shape: [1, 56, 8400] -> [1, 8400, 56]
       const transpose = predictions.transpose([0, 2, 1]);
-      console.log("Transposed shape:", transpose.shape);
 
       // Step 2: Extract box coordinates and convert to [x1, y1, x2, y2] format
       const w = slice(transpose, [0, 0, 2], [-1, -1, 1]); // width
@@ -89,12 +101,6 @@ export class YoloV8NPoseModel {
       // Step 5: Get the best detection
       const scoresData = scores.dataSync();
       const maxScoreIndex = scoresData.indexOf(Math.max(...scoresData));
-      console.log(
-        "Best detection index:",
-        maxScoreIndex,
-        "score:",
-        scoresData[maxScoreIndex]
-      );
 
       // Step 6: Get the box, score, and keypoints for the best detection
       const bestBox = squeeze(
