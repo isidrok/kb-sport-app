@@ -1,6 +1,6 @@
 import { keypointNames } from "./keypoints";
 
-interface RepRecord {
+export interface RepRecord {
   timestamp: number;
   type: "right" | "left" | "both";
 }
@@ -74,12 +74,12 @@ export class RepTracker {
     }
     this.lastDetection = now;
 
-    const rightWrist = keypoints[keypointNames.right_wrist];
-    const leftWrist = keypoints[keypointNames.left_wrist];
+    const rightElbow = keypoints[keypointNames.right_wrist];
+    const leftElbow = keypoints[keypointNames.left_wrist];
     const nose = keypoints[keypointNames.nose];
 
-    const rightArmAbove = this.isArmAbove(rightWrist, nose);
-    const leftArmAbove = this.isArmAbove(leftWrist, nose);
+    const rightArmAbove = this.isArmAbove(rightElbow, nose);
+    const leftArmAbove = this.isArmAbove(leftElbow, nose);
 
     // Handle right arm
     if (rightArmAbove && !this.wasRightArmAbove) {

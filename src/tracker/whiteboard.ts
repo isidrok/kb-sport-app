@@ -22,7 +22,7 @@ export interface WhiteboardOptions {
 const DEFAULT_WHITEBOARD_OPTIONS: Partial<WhiteboardOptions> = {
   confidenceThreshold: 0.3,
   flipVideo: true,
-  drawLabels: true,
+  drawLabels: false,
   drawConnections: true,
   format: {
     keypointRadius: 5,

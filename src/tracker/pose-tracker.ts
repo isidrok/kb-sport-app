@@ -123,4 +123,11 @@ export class PoseTracker {
     }
     return processedKeypoints;
   }
+
+  /**
+   * Gets the video element being used for tracking
+   */
+  getVideo(): HTMLVideoElement {
+    return this.camera.getVideo();
+  }
 }
