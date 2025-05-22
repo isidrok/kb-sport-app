@@ -12,6 +12,9 @@ importers:
         specifier: ^4.22.0
         version: 4.22.0(seedrandom@3.0.5)
     devDependencies:
+      '@types/wicg-file-system-access':
+        specifier: ^2023.10.6
+        version: 2023.10.6
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
@@ -327,6 +330,9 @@ packages:
 
   '@types/seedrandom@2.4.34':
     resolution: {integrity: sha512-ytDiArvrn/3Xk6/vtylys5tlY6eo7Ane0hvcx++TKo6RxQXuVfW0AF/oeWqAj9dN29SyhtawuXstgmPlwNcv/A==}
+
+  '@types/wicg-file-system-access@2023.10.6':
+    resolution: {integrity: sha512-YO/183gNRzZFSdKu+ikkD7ambAj4PhgjFAF2A/Mw/7wroSF6ne8r804RkpZzqrJ/F6DO2/IYlQF/ULOZ/bhKyA==}
 
   '@webgpu/types@0.1.38':
     resolution: {integrity: sha512-7LrhVKz2PRh+DD7+S+PVaFd5HxaWQvoMqBbsV9fNJO1pjUs1P8bM2vQVNfk+3URTqbuTI7gkXi0rfsN0IadoBA==}
@@ -835,6 +841,8 @@ snapshots:
   '@types/offscreencanvas@2019.7.3': {}
 
   '@types/seedrandom@2.4.34': {}
+
+  '@types/wicg-file-system-access@2023.10.6': {}
 
   '@webgpu/types@0.1.38': {}
 

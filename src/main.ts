@@ -1,5 +1,5 @@
 import { PoseTracker } from "./pose-tracker";
-import { keypointNames } from "./keypoints";
+import { RepTracker } from "./rep-tracker";
 
 async function main() {
   // Get DOM elements
@@ -9,30 +9,19 @@ async function main() {
   const counter = document.getElementById("counter") as HTMLDivElement;
 
   let tracker: PoseTracker | null = null;
-  let isRunning = false;
-  let wasRightArmAbove = false;
-  let wasLeftArmAbove = false;
-  let repetitions = 0;
-  const CONFIDENCE_THRESHOLD = 0.5;
-  const DEBOUNCE_TIME = 200; // milliseconds
+  let repTracker: RepTracker | null = null;
 
-  // Debounce state
-  let rightArmState = {
-    current: false,
-    lastChange: 0,
-    pending: false,
-  };
-  let leftArmState = {
-    current: false,
-    lastChange: 0,
-    pending: false,
-  };
+  function updateDisplay(stats: { totalReps: number; rpm: number }) {
+    counter.textContent = `Repetitions: ${stats.totalReps} (${stats.rpm} RPM)`;
+  }
 
   // Create and initialize a new tracker
   async function createTracker() {
     if (tracker) {
       tracker.dispose();
     }
+
+    repTracker = new RepTracker();
 
     tracker = new PoseTracker({
       width: 480,
@@ -47,86 +36,9 @@ async function main() {
       },
       flipVideo: true,
       onPose: (keypoints) => {
-        const nose = keypoints[keypointNames.nose];
-        const rightElbow = keypoints[keypointNames.right_elbow];
-        const leftElbow = keypoints[keypointNames.left_elbow];
-        const rightWrist = keypoints[keypointNames.right_wrist];
-        const leftWrist = keypoints[keypointNames.left_wrist];
-
-        // Check if keypoints are detected with sufficient confidence
-        const isNoseDetected = nose[2] > CONFIDENCE_THRESHOLD;
-        const isRightElbowDetected = rightElbow[2] > CONFIDENCE_THRESHOLD;
-        const isLeftElbowDetected = leftElbow[2] > CONFIDENCE_THRESHOLD;
-        const isRightWristDetected = rightWrist[2] > CONFIDENCE_THRESHOLD;
-        const isLeftWristDetected = leftWrist[2] > CONFIDENCE_THRESHOLD;
-
-        // Check if any part of right arm is above head
-        const rightArmAbove =
-          isNoseDetected &&
-          ((isRightElbowDetected && rightElbow[1] < nose[1]) ||
-            (isRightWristDetected && rightWrist[1] < nose[1]));
-
-        // Check if any part of left arm is above head
-        const leftArmAbove =
-          isNoseDetected &&
-          ((isLeftElbowDetected && leftElbow[1] < nose[1]) ||
-            (isLeftWristDetected && leftWrist[1] < nose[1]));
-
-        const now = Date.now();
-
-        // Handle right arm state changes
-        if (isNoseDetected && (isRightElbowDetected || isRightWristDetected)) {
-          if (rightArmAbove !== rightArmState.current) {
-            if (!rightArmState.pending) {
-              rightArmState.pending = true;
-              rightArmState.lastChange = now;
-            } else if (now - rightArmState.lastChange >= DEBOUNCE_TIME) {
-              if (rightArmAbove && !wasRightArmAbove && !leftArmAbove) {
-                repetitions++;
-                counter.textContent = `Repetitions: ${repetitions}`;
-              }
-              wasRightArmAbove = rightArmAbove;
-              rightArmState.current = rightArmAbove;
-              rightArmState.pending = false;
-            }
-          } else {
-            rightArmState.pending = false;
-          }
-        }
-
-        // Handle left arm state changes
-        if (isNoseDetected && (isLeftElbowDetected || isLeftWristDetected)) {
-          if (leftArmAbove !== leftArmState.current) {
-            if (!leftArmState.pending) {
-              leftArmState.pending = true;
-              leftArmState.lastChange = now;
-            } else if (now - leftArmState.lastChange >= DEBOUNCE_TIME) {
-              if (leftArmAbove && !wasLeftArmAbove && !rightArmAbove) {
-                repetitions++;
-                counter.textContent = `Repetitions: ${repetitions}`;
-              }
-              wasLeftArmAbove = leftArmAbove;
-              leftArmState.current = leftArmAbove;
-              leftArmState.pending = false;
-            }
-          } else {
-            leftArmState.pending = false;
-          }
-        }
-
-        // Handle both arms raised together
-        if (
-          rightArmAbove &&
-          leftArmAbove &&
-          !wasRightArmAbove &&
-          !wasLeftArmAbove
-        ) {
-          repetitions++;
-          counter.textContent = `Repetitions: ${repetitions}`;
-          wasRightArmAbove = true;
-          wasLeftArmAbove = true;
-          rightArmState.current = true;
-          leftArmState.current = true;
+        const stats = repTracker?.detect(keypoints);
+        if (stats) {
+          updateDisplay(stats);
         }
       },
     });
@@ -140,13 +52,23 @@ async function main() {
   // Handle button clicks
   go.addEventListener("click", async () => {
     if (go.textContent === "Start") {
-      await tracker!.start();
-      isRunning = true;
-      go.textContent = "Stop";
+      try {
+        await tracker!.start();
+        go.textContent = "Stop";
+      } catch (error) {
+        console.error("Error starting tracker:", error);
+        alert("Failed to start tracking");
+      }
     } else {
-      tracker!.stop();
-      isRunning = false;
-      go.textContent = "Start";
+      try {
+        tracker!.stop();
+        go.textContent = "Start";
+        repTracker?.reset();
+        updateDisplay({ totalReps: 0, rpm: 0 });
+      } catch (error) {
+        console.error("Error stopping tracker:", error);
+        alert("Failed to stop tracking");
+      }
     }
   });
 }
