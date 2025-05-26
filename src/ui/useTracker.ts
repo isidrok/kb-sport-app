@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
-import { PoseTracker } from "./tracker/pose-tracker";
-import { RepTracker } from "./tracker/rep-tracker";
-import { VideoStorage, type RecordingMetadata } from "./tracker/video-storage";
+import { PoseTracker } from "../tracker/pose-tracker";
+import { RepTracker } from "../tracker/rep-tracker";
+import { VideoStorage, type RecordingMetadata } from "../tracker/video-storage";
 
 interface TrackerStats {
   totalReps: number;

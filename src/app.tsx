@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
-import { WorkoutView } from "./components/WorkoutView";
-import { RecordingsList } from "./components/RecordingsList";
+import { WorkoutView } from "./ui/WorkoutView";
+import { RecordingsList } from "./ui/RecordingsList";
 import { VideoStorage } from "./tracker/video-storage";
 
 export function App() {
@@ -17,12 +17,10 @@ export function App() {
           videoStorage={videoStorage}
         />
       ) : (
-        <div class="recordings-view">
-          <button onClick={() => setCurrentView("workout")} class="view-switch">
-            Back to Workout
-          </button>
-          <RecordingsList videoStorage={videoStorage} />
-        </div>
+        <RecordingsList
+          videoStorage={videoStorage}
+          onBack={() => setCurrentView("workout")}
+        />
       )}
     </div>
   );

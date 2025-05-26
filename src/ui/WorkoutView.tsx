@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "preact/hooks";
-import { useTracker } from "../use-tracker";
+import { useEffect, useRef } from "preact/hooks";
+import { useTracker } from "./useTracker";
 import { VideoStorage } from "../tracker/video-storage";
 
 interface WorkoutViewProps {
@@ -39,10 +39,13 @@ export function WorkoutView({ onViewChange, videoStorage }: WorkoutViewProps) {
       </div>
       <div class="controls">
         <div class="counter">
-          {stats.totalReps} @ {stats.rpm} RPM
+          {stats.totalReps}r @ {stats.rpm}rpm
         </div>
         <div className="button-group">
-          <button onClick={toggleTracker}>
+          <button
+            onClick={toggleTracker}
+            className={!isRunning ? "primary" : undefined}
+          >
             {isRunning ? "Stop" : "Start"}
           </button>
           <button
@@ -50,7 +53,7 @@ export function WorkoutView({ onViewChange, videoStorage }: WorkoutViewProps) {
             class="view-switch"
             disabled={isRunning}
           >
-            View Recordings
+            Workouts
           </button>
         </div>
       </div>
