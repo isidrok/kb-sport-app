@@ -40,9 +40,10 @@ export class YoloV8NPoseModel {
 
   process(video: HTMLVideoElement) {
     return tidy(() => {
-      const frame = this.getFrame(video);
+      const { frame, scaleX, scaleY } = this.getFrame(video);
       const predictions = this.model.predict(frame) as Tensor;
-      return this.getBestDetection(predictions);
+      const detection = this.getBestDetection(predictions);
+      return { ...detection, scaleX, scaleY };
     });
   }
 
@@ -53,7 +54,7 @@ export class YoloV8NPoseModel {
   }
 
   /**
-   * Returns a frame from the video.
+   * Returns a frame from the video and the scale/padding info.
    * YOLOv8n-pose expects input in the shape [batch_size, height, width, channels]
    * The input needs to be:
    * 1. Padded to be square if the input isn't already square
@@ -61,27 +62,23 @@ export class YoloV8NPoseModel {
    * 3. Normalized to values between 0 and 1 (divided by 255)
    * 4. Have a batch dimension added
    * @param video - The video to get a frame from.
-   * @returns The tensor ready for process.
+   * @returns The tensor ready for process, and scale/padding info.
    */
   private getFrame(video: HTMLVideoElement) {
     return tidy(() => {
       const frame = tfBrowser.fromPixels(video);
       const [modelHeight, modelWidth] = this.inputShape.slice(1, 3);
       const [frameHeight, frameWidth] = frame.shape.slice(0, 2);
-      const maxSize = Math.max(frameWidth, frameHeight);
-      const padded = frame.pad([
-        [0, maxSize - frameHeight],
-        [0, maxSize - frameWidth],
-        [0, 0],
-      ]);
-      const float32 = padded.toFloat();
+      const float32 = frame.toFloat();
       const normalized = float32.div<Tensor3D>(255.0);
       const resized = image.resizeBilinear(normalized, [
-        modelWidth,
         modelHeight,
+        modelWidth,
       ]);
       const batched = resized.expandDims(0);
-      return batched;
+      const scaleX = frameWidth / modelWidth;
+      const scaleY = frameHeight / modelHeight;
+      return { frame: batched, scaleX, scaleY };
     });
   }
   private getBestDetection(predictions: Tensor) {

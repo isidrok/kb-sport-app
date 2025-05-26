@@ -92,7 +92,11 @@ export class PoseTracker {
 
     try {
       const keypointsData = await result.keypoints.data();
-      keypoints = this.processKeypoints(keypointsData);
+      keypoints = this.processKeypoints(
+        keypointsData,
+        result.scaleX,
+        result.scaleY
+      );
       this.options.onPose?.(keypoints);
       this.whiteboard.drawFrame(video, keypoints);
       this.animationFrameId = requestAnimationFrame(() => this.processFrame());
@@ -107,17 +111,23 @@ export class PoseTracker {
   /**
    * Processes raw keypoint data into the expected format
    * @param keypointsData Raw keypoint data from model
+   * @param scaleX Scale for x axis from model preprocessing
+   * @param scaleY Scale for y axis from model preprocessing
    * @returns Array of [x, y, confidence] values for each keypoint
    */
   private processKeypoints(
-    keypointsData: Float32Array | Int32Array | Uint8Array
+    keypointsData: Float32Array | Int32Array | Uint8Array,
+    scaleX: number = 1,
+    scaleY: number = 1
   ): number[][] {
     const { flipVideo, width } = this.options;
     const processedKeypoints = [];
     for (let i = 0; i < 17; i++) {
+      // Scale keypoints
+      let x = keypointsData[i * 3] * scaleX;
+      let y = keypointsData[i * 3 + 1] * scaleY;
       // Flip x coordinate for keypoints to match flipped video
-      const x = flipVideo ? width - keypointsData[i * 3] : keypointsData[i * 3];
-      const y = keypointsData[i * 3 + 1];
+      x = flipVideo ? width - x : x;
       const conf = keypointsData[i * 3 + 2];
       processedKeypoints.push([x, y, conf]);
     }

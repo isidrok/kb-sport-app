@@ -21,7 +21,8 @@ export function useTracker(videoStorage: VideoStorage) {
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
     if (!video || !canvas) return;
-
+    canvas.width = width;
+    canvas.height = height;
     const newRepTracker = new RepTracker();
     const newTracker = new PoseTracker({
       width,

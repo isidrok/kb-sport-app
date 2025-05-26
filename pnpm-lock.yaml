@@ -21,6 +21,9 @@ importers:
       '@types/wicg-file-system-access':
         specifier: ^2023.10.6
         version: 2023.10.6
+      '@vitejs/plugin-basic-ssl':
+        specifier: ^2.0.0
+        version: 2.0.0(vite@6.3.5(@types/node@20.17.47))
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
@@ -477,6 +480,12 @@ packages:
 
   '@types/wicg-file-system-access@2023.10.6':
     resolution: {integrity: sha512-YO/183gNRzZFSdKu+ikkD7ambAj4PhgjFAF2A/Mw/7wroSF6ne8r804RkpZzqrJ/F6DO2/IYlQF/ULOZ/bhKyA==}
+
+  '@vitejs/plugin-basic-ssl@2.0.0':
+    resolution: {integrity: sha512-gc9Tjg8bUxBVSTzeWT3Njc0Cl3PakHFKdNfABnZWiUgbxqmHDEn7uECv3fHVylxoYgNzAcmU7ZrILz+BwSo3sA==}
+    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
+    peerDependencies:
+      vite: ^6.0.0
 
   '@webgpu/types@0.1.38':
     resolution: {integrity: sha512-7LrhVKz2PRh+DD7+S+PVaFd5HxaWQvoMqBbsV9fNJO1pjUs1P8bM2vQVNfk+3URTqbuTI7gkXi0rfsN0IadoBA==}
@@ -1317,6 +1326,10 @@ snapshots:
   '@types/seedrandom@2.4.34': {}
 
   '@types/wicg-file-system-access@2023.10.6': {}
+
+  '@vitejs/plugin-basic-ssl@2.0.0(vite@6.3.5(@types/node@20.17.47))':
+    dependencies:
+      vite: 6.3.5(@types/node@20.17.47)
 
   '@webgpu/types@0.1.38': {}
 

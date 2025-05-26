@@ -30,11 +30,18 @@ export class Camera {
    * @returns Promise that resolves when the video is ready
    */
   async start(): Promise<void> {
+    console.log(this.options);
+    let width = this.options.width;
+    let height = this.options.height;
+    if (window.innerHeight > window.innerWidth) {
+      // Portrait mode: swap width and height
+      [width, height] = [height, width];
+    }
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: this.options.audio,
       video: {
-        width: this.options.width,
-        height: this.options.height,
+        width,
+        height,
         facingMode: this.options.facingMode,
       },
     });

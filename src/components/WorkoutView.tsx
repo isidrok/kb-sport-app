@@ -1,4 +1,4 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { useTracker } from "../use-tracker";
 import { VideoStorage } from "../tracker/video-storage";
 
@@ -7,50 +7,52 @@ interface WorkoutViewProps {
   videoStorage: VideoStorage;
 }
 
-const VIDEO_WIDTH = 480;
-const VIDEO_HEIGHT = 640;
-
 export function WorkoutView({ onViewChange, videoStorage }: WorkoutViewProps) {
   const { isRunning, stats, toggleTracker, initTracker, dispose } =
     useTracker(videoStorage);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Set CSS variables
-    document.documentElement.style.setProperty(
-      "--video-width",
-      `${VIDEO_WIDTH}px`
-    );
-    document.documentElement.style.setProperty(
-      "--video-height",
-      `${VIDEO_HEIGHT}px`
-    );
-
-    initTracker(VIDEO_WIDTH, VIDEO_HEIGHT);
-    return dispose;
+    const { width, height } =
+      videoContainerRef.current?.getBoundingClientRect() ?? {
+        width: 0,
+        height: 0,
+      };
+    initTracker(width, height);
+    return () => {
+      dispose();
+    };
   }, []);
 
   return (
     <div class="workout-view">
-      <div class="video-container">
+      <div class="video-container" ref={videoContainerRef}>
         <video
           id="video"
           playsinline
           autoplay
           muted
-          width={VIDEO_WIDTH}
-          height={VIDEO_HEIGHT}
+          width="100%"
+          height="100%"
         ></video>
-        <canvas id="canvas" width={VIDEO_WIDTH} height={VIDEO_HEIGHT}></canvas>
+        <canvas id="canvas" width="100%" height="100%"></canvas>
       </div>
       <div class="controls">
         <div class="counter">
-          {stats.totalReps}
-          <span>{stats.rpm} RPM</span>
+          {stats.totalReps} @ {stats.rpm} RPM
         </div>
-        <button onClick={toggleTracker}>{isRunning ? "Stop" : "Start"}</button>
-        <button onClick={onViewChange} class="view-switch" disabled={isRunning}>
-          View Recordings
-        </button>
+        <div className="button-group">
+          <button onClick={toggleTracker}>
+            {isRunning ? "Stop" : "Start"}
+          </button>
+          <button
+            onClick={onViewChange}
+            class="view-switch"
+            disabled={isRunning}
+          >
+            View Recordings
+          </button>
+        </div>
       </div>
     </div>
   );
