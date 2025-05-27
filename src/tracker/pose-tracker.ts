@@ -114,7 +114,7 @@ export class PoseTracker {
   /**
    * Processes raw keypoint data into the expected format
    * @param keypointsData Raw keypoint data from model
-   * @param scale Scale factor from model preprocessing
+   * @param scale Scale factor from model preprocessing (maxDim / modelWidth)
    * @param dx Horizontal padding from letterboxing
    * @param dy Vertical padding from letterboxing
    * @param origWidth Original video width
@@ -132,13 +132,17 @@ export class PoseTracker {
     const { flipVideo, width } = this.options;
     const processedKeypoints = [];
     for (let i = 0; i < 17; i++) {
-      // Get raw coordinates
+      // Get raw coordinates from model output
       let x = keypointsData[i * 3];
       let y = keypointsData[i * 3 + 1];
 
-      // Remove padding and revert scaling
-      x = (x - dx) / scale;
-      y = (y - dy) / scale;
+      // Scale back to the padded square image size
+      x = x * scale;
+      y = y * scale;
+
+      // Remove padding
+      x = x - dx;
+      y = y - dy;
 
       // Clamp coordinates to original image bounds
       x = Math.max(0, Math.min(x, origWidth));

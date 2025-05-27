@@ -71,32 +71,32 @@ export class YoloV8NPoseModel {
       const [modelHeight, modelWidth] = this.inputShape.slice(1, 3);
       const [frameHeight, frameWidth] = frame.shape.slice(0, 2);
 
-      // Compute the scaling factor (preserve aspect ratio)
-      const scale = Math.min(
-        modelWidth / frameWidth,
-        modelHeight / frameHeight
-      );
-      const newWidth = Math.round(frameWidth * scale);
-      const newHeight = Math.round(frameHeight * scale);
-
-      // Resize image with the uniform scale
+      // Convert to float and normalize
       const float32 = frame.toFloat();
       const normalized = float32.div<Tensor3D>(255.0);
-      const resized = image.resizeBilinear(normalized, [newHeight, newWidth]);
 
-      // Compute padding (center the resized image in the model input)
-      const dx = Math.floor((modelWidth - newWidth) / 2);
-      const dy = Math.floor((modelHeight - newHeight) / 2);
+      // Calculate padding to make the image square while preserving aspect ratio
+      const maxDim = Math.max(frameWidth, frameHeight);
+      const padWidth = maxDim - frameWidth;
+      const padHeight = maxDim - frameHeight;
+      const dx = Math.floor(padWidth / 2);
+      const dy = Math.floor(padHeight / 2);
 
-      // Pad the resized image
-      const padded = resized.pad([
-        [dy, modelHeight - newHeight - dy],
-        [dx, modelWidth - newWidth - dx],
+      // Pad the image to make it square
+      const padded = normalized.pad<Tensor3D>([
+        [dy, padHeight - dy],
+        [dx, padWidth - dx],
         [0, 0],
       ]);
 
+      // Now resize the square padded image to model dimensions
+      const resized = image.resizeBilinear(padded, [modelHeight, modelWidth]);
+
       // Add batch dimension
-      const batched = padded.expandDims(0);
+      const batched = resized.expandDims(0);
+
+      // Calculate the scale factor for coordinate transformation
+      const scale = maxDim / modelWidth;
 
       return {
         frame: batched,
