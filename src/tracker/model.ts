@@ -40,10 +40,11 @@ export class YoloV8NPoseModel {
 
   process(video: HTMLVideoElement) {
     return tidy(() => {
-      const { frame, scaleX, scaleY } = this.getFrame(video);
+      const { frame, scale, dx, dy, origWidth, origHeight } =
+        this.getFrame(video);
       const predictions = this.model.predict(frame) as Tensor;
       const detection = this.getBestDetection(predictions);
-      return { ...detection, scaleX, scaleY };
+      return { ...detection, scale, dx, dy, origWidth, origHeight };
     });
   }
 
@@ -69,16 +70,42 @@ export class YoloV8NPoseModel {
       const frame = tfBrowser.fromPixels(video);
       const [modelHeight, modelWidth] = this.inputShape.slice(1, 3);
       const [frameHeight, frameWidth] = frame.shape.slice(0, 2);
+
+      // Compute the scaling factor (preserve aspect ratio)
+      const scale = Math.min(
+        modelWidth / frameWidth,
+        modelHeight / frameHeight
+      );
+      const newWidth = Math.round(frameWidth * scale);
+      const newHeight = Math.round(frameHeight * scale);
+
+      // Resize image with the uniform scale
       const float32 = frame.toFloat();
       const normalized = float32.div<Tensor3D>(255.0);
-      const resized = image.resizeBilinear(normalized, [
-        modelHeight,
-        modelWidth,
+      const resized = image.resizeBilinear(normalized, [newHeight, newWidth]);
+
+      // Compute padding (center the resized image in the model input)
+      const dx = Math.floor((modelWidth - newWidth) / 2);
+      const dy = Math.floor((modelHeight - newHeight) / 2);
+
+      // Pad the resized image
+      const padded = resized.pad([
+        [dy, modelHeight - newHeight - dy],
+        [dx, modelWidth - newWidth - dx],
+        [0, 0],
       ]);
-      const batched = resized.expandDims(0);
-      const scaleX = frameWidth / modelWidth;
-      const scaleY = frameHeight / modelHeight;
-      return { frame: batched, scaleX, scaleY };
+
+      // Add batch dimension
+      const batched = padded.expandDims(0);
+
+      return {
+        frame: batched,
+        scale,
+        dx,
+        dy,
+        origWidth: frameWidth,
+        origHeight: frameHeight,
+      };
     });
   }
   private getBestDetection(predictions: Tensor) {

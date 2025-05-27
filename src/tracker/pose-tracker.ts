@@ -94,8 +94,11 @@ export class PoseTracker {
       const keypointsData = await result.keypoints.data();
       keypoints = this.processKeypoints(
         keypointsData,
-        result.scaleX,
-        result.scaleY
+        result.scale,
+        result.dx,
+        result.dy,
+        video.videoWidth,
+        video.videoHeight
       );
       this.options.onPose?.(keypoints);
       this.whiteboard.drawFrame(video, keypoints);
@@ -111,23 +114,39 @@ export class PoseTracker {
   /**
    * Processes raw keypoint data into the expected format
    * @param keypointsData Raw keypoint data from model
-   * @param scaleX Scale for x axis from model preprocessing
-   * @param scaleY Scale for y axis from model preprocessing
+   * @param scale Scale factor from model preprocessing
+   * @param dx Horizontal padding from letterboxing
+   * @param dy Vertical padding from letterboxing
+   * @param origWidth Original video width
+   * @param origHeight Original video height
    * @returns Array of [x, y, confidence] values for each keypoint
    */
   private processKeypoints(
     keypointsData: Float32Array | Int32Array | Uint8Array,
-    scaleX: number = 1,
-    scaleY: number = 1
+    scale: number,
+    dx: number,
+    dy: number,
+    origWidth: number,
+    origHeight: number
   ): number[][] {
     const { flipVideo, width } = this.options;
     const processedKeypoints = [];
     for (let i = 0; i < 17; i++) {
-      // Scale keypoints
-      let x = keypointsData[i * 3] * scaleX;
-      let y = keypointsData[i * 3 + 1] * scaleY;
+      // Get raw coordinates
+      let x = keypointsData[i * 3];
+      let y = keypointsData[i * 3 + 1];
+
+      // Remove padding and revert scaling
+      x = (x - dx) / scale;
+      y = (y - dy) / scale;
+
+      // Clamp coordinates to original image bounds
+      x = Math.max(0, Math.min(x, origWidth));
+      y = Math.max(0, Math.min(y, origHeight));
+
       // Flip x coordinate for keypoints to match flipped video
       x = flipVideo ? width - x : x;
+
       const conf = keypointsData[i * 3 + 2];
       processedKeypoints.push([x, y, conf]);
     }
