@@ -3,129 +3,279 @@ import { COCO_KEYPOINTS } from "../config/coco-keypoints";
 
 const ANALYSIS_CONFIG = {
     CONFIDENCE_THRESHOLD: 0.3,
-    ERROR_MARGIN: 0.4,
-    DEBOUNCE_MS: 500,
-    // Anchor points for analysis
-    LEFT_ARM_ANCHOR: COCO_KEYPOINTS.left_wrist,
-    RIGHT_ARM_ANCHOR: COCO_KEYPOINTS.right_wrist,
-    HEAD_ANCHOR: COCO_KEYPOINTS.nose,
+    SMOOTHING_WINDOW: 3,
+    OVERHEAD_HOLD_MS: 150,
+    BELOW_HEAD_TIME_MS: 300,
+    REP_DEBOUNCE_MS: 800,
 } as const;
 
-interface ArmThresholds {
-    left: number;
-    right: number;
+type RepState = 'ready' | 'overhead' | 'complete';
+
+interface BodyPosition {
+    leftWrist: [number, number, number];
+    rightWrist: [number, number, number];
+    nose: [number, number, number];
+    timestamp: number;
 }
 
-interface ArmStatus {
-    left: boolean;
-    right: boolean;
+interface ArmStateMachine {
+    state: RepState;
+    lastStateChange: number;
+    repStartTime: number;
+    overheadDetectedTime: number;
+    belowHeadStartTime: number;
 }
 
 export interface RepDetection {
     detected: boolean;
     armType: "left" | "right" | "both";
     timestamp: number;
+    confidence: number;
 }
 
 export class PredictionAnalysisService {
-    private thresholds: ArmThresholds | null = null;
+    private positionHistory: BodyPosition[] = [];
+    private leftArmMachine: ArmStateMachine = this.createInitialState();
+    private rightArmMachine: ArmStateMachine = this.createInitialState();
+    private bothArmsMachine: ArmStateMachine = this.createInitialState();
     private lastRepTime = 0;
-    private leftArmInThreshold = false;
-    private rightArmInThreshold = false;
 
-    setThresholds(thresholds: ArmThresholds): void {
-        this.thresholds = { ...thresholds };
+    setThresholds(): void {
+        // Not needed for position-based detection
     }
 
     hasThresholds(): boolean {
-        return this.thresholds !== null;
+        return true;
     }
 
-    getThresholds(): ArmThresholds | null {
-        return this.thresholds ? { ...this.thresholds } : null;
+    getThresholds(): null {
+        return null;
     }
 
     resetState(): void {
+        this.positionHistory = [];
+        this.leftArmMachine = this.createInitialState();
+        this.rightArmMachine = this.createInitialState();
+        this.bothArmsMachine = this.createInitialState();
         this.lastRepTime = 0;
-        this.leftArmInThreshold = false;
-        this.rightArmInThreshold = false;
     }
 
     analyzeForRep(prediction: Prediction): RepDetection {
-        if (!this.thresholds) {
-            return { detected: false, armType: "left", timestamp: Date.now() };
-        }
-
         const currentTime = Date.now();
-        const armStatus = this.getArmStatus(prediction);
 
-        // Global debounce check
-        if (currentTime - this.lastRepTime < ANALYSIS_CONFIG.DEBOUNCE_MS) {
-            this.updateArmState(armStatus);
-            return { detected: false, armType: "left", timestamp: currentTime };
+        // Extract key body positions
+        const bodyPosition = this.extractBodyPosition(prediction, currentTime);
+        if (!bodyPosition) {
+            return { detected: false, armType: "both", timestamp: currentTime, confidence: 0 };
         }
 
-        // Check if any arm entered threshold
-        const leftEntered = armStatus.left && !this.leftArmInThreshold;
-        const rightEntered = armStatus.right && !this.rightArmInThreshold;
+        // Update position history
+        this.updatePositionHistory(bodyPosition);
 
-        let repDetected = false;
-        let armType: "left" | "right" | "both" = "left";
+        // Check if both arms are overhead to prevent individual arm detection
+        const leftOverhead = bodyPosition.leftWrist[1] < bodyPosition.nose[1] - 50;
+        const rightOverhead = bodyPosition.rightWrist[1] < bodyPosition.nose[1] - 50;
+        const bothArmsOverhead = leftOverhead && rightOverhead;
 
-        // Prioritize "both" rep when both arms enter threshold simultaneously
-        if (leftEntered && rightEntered) {
-            repDetected = true;
-            armType = "both";
+        // Check if either arm is already in progress (overhead or complete state)
+        const leftInProgress = this.leftArmMachine.state === 'overhead' || this.leftArmMachine.state === 'complete';
+        const rightInProgress = this.rightArmMachine.state === 'overhead' || this.rightArmMachine.state === 'complete';
+
+        // If one arm is in progress and the other goes overhead, treat as both-arms movement
+        const shouldTreatAsBoth = bothArmsOverhead ||
+            (leftOverhead && rightInProgress) ||
+            (rightOverhead && leftInProgress);
+
+        // Check for both arms pattern first
+        const bothArmsRep = this.analyzeArmPattern(bodyPosition, this.bothArmsMachine, 'both', currentTime);
+
+        if (bothArmsRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+            // Reset individual arm machines to prevent double counting
+            this.leftArmMachine = this.createInitialState();
+            this.rightArmMachine = this.createInitialState();
             this.lastRepTime = currentTime;
-        }
-        // Single arm reps
-        else if (leftEntered) {
-            repDetected = true;
-            armType = "left";
-            this.lastRepTime = currentTime;
-        }
-        else if (rightEntered) {
-            repDetected = true;
-            armType = "right";
-            this.lastRepTime = currentTime;
+            console.log('🏋️ BOTH ARMS REP DETECTED! (Reset individual arms)');
+            return {
+                detected: true,
+                armType: "both",
+                timestamp: currentTime,
+                confidence: 0.8,
+            };
         }
 
-        this.updateArmState(armStatus);
+        // Only check individual arms if we shouldn't treat this as both-arms movement
+        if (!shouldTreatAsBoth) {
+            const leftArmRep = this.analyzeArmPattern(bodyPosition, this.leftArmMachine, 'left', currentTime);
+            const rightArmRep = this.analyzeArmPattern(bodyPosition, this.rightArmMachine, 'right', currentTime);
 
+            if (leftArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+                this.lastRepTime = currentTime;
+                console.log('🏋️ LEFT ARM REP DETECTED!');
+                return {
+                    detected: true,
+                    armType: "left",
+                    timestamp: currentTime,
+                    confidence: 0.8,
+                };
+            } else if (rightArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+                this.lastRepTime = currentTime;
+                console.log('🏋️ RIGHT ARM REP DETECTED!');
+                return {
+                    detected: true,
+                    armType: "right",
+                    timestamp: currentTime,
+                    confidence: 0.8,
+                };
+            }
+        } else if (shouldTreatAsBoth) {
+            // Should treat as both-arms - reset individual machines and ensure both-arms machine is active
+            if (leftInProgress || rightInProgress) {
+                console.log('🔄 Converting individual arm movement to both-arms movement');
+                this.leftArmMachine = this.createInitialState();
+                this.rightArmMachine = this.createInitialState();
+
+                // Kickstart both-arms machine if not already active
+                if (this.bothArmsMachine.state === 'ready' && bothArmsOverhead) {
+                    this.bothArmsMachine.state = 'overhead';
+                    this.bothArmsMachine.lastStateChange = currentTime;
+                    this.bothArmsMachine.repStartTime = currentTime;
+                    this.bothArmsMachine.overheadDetectedTime = currentTime;
+                    console.log('🔄 Starting both-arms detection');
+                }
+            }
+        }
+
+        return { detected: false, armType: "both", timestamp: currentTime, confidence: 0 };
+    }
+
+    private createInitialState(): ArmStateMachine {
         return {
-            detected: repDetected,
-            armType,
-            timestamp: currentTime,
+            state: 'ready',
+            lastStateChange: Date.now(),
+            repStartTime: 0,
+            overheadDetectedTime: 0,
+            belowHeadStartTime: 0,
         };
     }
 
-    getArmStatus(prediction: Prediction): ArmStatus {
-        if (!this.thresholds) {
-            return { left: false, right: false };
-        }
-
+    private extractBodyPosition(prediction: Prediction, timestamp: number): BodyPosition | null {
         const { keypoints } = prediction;
-        const leftArmAnchor = keypoints[ANALYSIS_CONFIG.LEFT_ARM_ANCHOR];
-        const rightArmAnchor = keypoints[ANALYSIS_CONFIG.RIGHT_ARM_ANCHOR];
+
+        const leftWrist = keypoints[COCO_KEYPOINTS.left_wrist];
+        const rightWrist = keypoints[COCO_KEYPOINTS.right_wrist];
+        const nose = keypoints[COCO_KEYPOINTS.nose];
+
+        // Check if key points are visible
+        if (leftWrist[2] < ANALYSIS_CONFIG.CONFIDENCE_THRESHOLD ||
+            rightWrist[2] < ANALYSIS_CONFIG.CONFIDENCE_THRESHOLD ||
+            nose[2] < ANALYSIS_CONFIG.CONFIDENCE_THRESHOLD) {
+            return null;
+        }
 
         return {
-            left: this.isArmInThreshold(leftArmAnchor, this.thresholds.left),
-            right: this.isArmInThreshold(rightArmAnchor, this.thresholds.right),
+            leftWrist: leftWrist as [number, number, number],
+            rightWrist: rightWrist as [number, number, number],
+            nose: nose as [number, number, number],
+            timestamp,
         };
     }
 
-    // Private helper methods
-    private updateArmState(armStatus: ArmStatus): void {
-        this.leftArmInThreshold = armStatus.left;
-        this.rightArmInThreshold = armStatus.right;
+    private updatePositionHistory(newPosition: BodyPosition): void {
+        this.positionHistory.push(newPosition);
+
+        if (this.positionHistory.length > ANALYSIS_CONFIG.SMOOTHING_WINDOW) {
+            this.positionHistory.shift();
+        }
     }
 
-    private isArmInThreshold(armAnchor: number[], threshold: number): boolean {
-        const armVisible = armAnchor[2] > ANALYSIS_CONFIG.CONFIDENCE_THRESHOLD;
+    private analyzeArmPattern(bodyPosition: BodyPosition, machine: ArmStateMachine, armType: "left" | "right" | "both", currentTime: number): boolean {
+        // Calculate if the arm(s) are overhead (above head level)
+        let overhead: boolean;
+        let logInfo: any;
 
-        if (!armVisible) return false;
+        if (armType === 'both') {
+            const leftOverhead = bodyPosition.leftWrist[1] < bodyPosition.nose[1] - 50;
+            const rightOverhead = bodyPosition.rightWrist[1] < bodyPosition.nose[1] - 50;
+            overhead = leftOverhead && rightOverhead;
+            logInfo = {
+                state: machine.state,
+                leftOverhead,
+                rightOverhead,
+                bothOverhead: overhead,
+                leftWristY: bodyPosition.leftWrist[1].toFixed(1),
+                rightWristY: bodyPosition.rightWrist[1].toFixed(1),
+                noseY: bodyPosition.nose[1].toFixed(1),
+                threshold: (bodyPosition.nose[1] - 50).toFixed(1)
+            };
+        } else {
+            const wristKey = armType === 'left' ? 'leftWrist' : 'rightWrist';
+            overhead = bodyPosition[wristKey][1] < bodyPosition.nose[1] - 50;
+            logInfo = {
+                state: machine.state,
+                overhead,
+                wristY: bodyPosition[wristKey][1].toFixed(1),
+                noseY: bodyPosition.nose[1].toFixed(1),
+                threshold: (bodyPosition.nose[1] - 50).toFixed(1)
+            };
+        }
 
-        const errorMargin = threshold * ANALYSIS_CONFIG.ERROR_MARGIN;
-        return Math.abs(armAnchor[1] - threshold) <= errorMargin;
+        console.log(`${armType.toUpperCase()} Arm Analysis:`, logInfo);
+
+        switch (machine.state) {
+            case 'ready':
+                if (overhead) {
+                    machine.state = 'overhead';
+                    machine.lastStateChange = currentTime;
+                    machine.repStartTime = currentTime;
+                    machine.overheadDetectedTime = currentTime;
+                    console.log(`🔄 State: READY → OVERHEAD`);
+                }
+                break;
+
+            case 'overhead':
+                // Count rep after holding overhead position for at least 150ms
+                const holdTime = currentTime - machine.overheadDetectedTime;
+
+                if (holdTime > ANALYSIS_CONFIG.OVERHEAD_HOLD_MS) {
+                    // Held long enough - rep complete!
+                    machine.state = 'complete';
+                    machine.lastStateChange = currentTime;
+                    machine.belowHeadStartTime = 0; // Reset for tracking
+                    console.log(`✅ REP COMPLETED AT TOP!`, { holdTime });
+                    return true; // Rep counted immediately
+                } else if (!overhead) {
+                    // Lost overhead position before completing hold - reset
+                    console.log(`❌ Lost overhead position too early, hold time was:`, holdTime, 'ms (needed', ANALYSIS_CONFIG.OVERHEAD_HOLD_MS, 'ms)');
+                    machine.state = 'ready';
+                    machine.lastStateChange = currentTime;
+                }
+                break;
+
+            case 'complete':
+                // Wait for arm to come down and stay below head before allowing next rep
+                if (!overhead) {
+                    if (machine.belowHeadStartTime === 0) {
+                        // Just came below head, start timing
+                        machine.belowHeadStartTime = currentTime;
+                        console.log(`⬇️ ${armType.toUpperCase()} Arms came down, starting below-head timer`);
+                    }
+
+                    const belowHeadTime = currentTime - machine.belowHeadStartTime;
+
+                    if (belowHeadTime > ANALYSIS_CONFIG.BELOW_HEAD_TIME_MS) {
+                        // Stayed below head long enough, ready for next rep
+                        machine.state = 'ready';
+                        machine.lastStateChange = currentTime;
+                        machine.belowHeadStartTime = 0;
+                        console.log(`🔄 ${armType.toUpperCase()} Ready for next rep after`, belowHeadTime, 'ms below head');
+                    }
+                } else {
+                    // Arm went back overhead, reset the below-head timer
+                    machine.belowHeadStartTime = 0;
+                }
+                break;
+        }
+
+        return false;
     }
 } 

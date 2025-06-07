@@ -144,7 +144,18 @@ export class WorkoutOrchestratorService {
   private handleActiveFrame(bestPrediction: any): void {
     const repDetection = this.services.analysis.analyzeForRep(bestPrediction);
 
+    // Debug logging to see what's happening
+    if (repDetection.confidence > 0.1) {
+      console.log('Rep detection:', {
+        detected: repDetection.detected,
+        armType: repDetection.armType,
+        confidence: repDetection.confidence,
+        timestamp: repDetection.timestamp
+      });
+    }
+
     if (repDetection.detected) {
+      console.log('🏋️ REP DETECTED!', repDetection);
       this.services.repCounting.addRep(repDetection.armType, repDetection.timestamp);
     }
 
@@ -179,8 +190,6 @@ export class WorkoutOrchestratorService {
 
   private async transitionToActiveWorkout(video: HTMLVideoElement): Promise<void> {
     // Setup analysis with calibration thresholds
-    const thresholds = this.services.calibration.getThresholds()!;
-    this.services.analysis.setThresholds(thresholds);
     this.services.analysis.resetState();
 
     // Start session and recording
