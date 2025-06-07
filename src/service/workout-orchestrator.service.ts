@@ -1,16 +1,14 @@
 import { CameraService } from "./camera.service";
 import { PredictionService } from "./prediction.service";
 import { RenderingService } from "./rendering.service";
-import { CalibrationService } from "./calibration.service";
 import { RepCountingService, WorkoutSession } from "./rep-counting.service";
 import { PredictionAnalysisService } from "./prediction-analysis.service";
 import { StorageService } from "./storage.service";
 
-export type AppState = 'idle' | 'calibrating' | 'countdown' | 'active';
+export type AppState = 'idle' | 'countdown' | 'active';
 
 export interface WorkoutState {
   appState: AppState;
-  calibrationProgress: number;
   countdown: number | null;
   session: WorkoutSession | null;
 }
@@ -29,7 +27,6 @@ export class WorkoutOrchestratorService {
     camera: new CameraService(),
     prediction: new PredictionService(),
     rendering: new RenderingService(),
-    calibration: new CalibrationService(),
     analysis: new PredictionAnalysisService(),
     repCounting: new RepCountingService(),
     storage: new StorageService(),
@@ -49,13 +46,10 @@ export class WorkoutOrchestratorService {
   async start(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<void> {
     if (this.state !== 'idle') return;
 
-    this.setState('calibrating', { session: null, calibrationProgress: 0 });
-
     // Get canvas dimensions for camera setup
     const { width, height } = canvas.getBoundingClientRect();
     await this.services.camera.start(width, height, video);
-    this.services.calibration.start();
-    this.startProcessingLoop(video, canvas);
+    this.startCountdown(video, canvas);
   }
 
   async stop(): Promise<void> {
@@ -66,7 +60,7 @@ export class WorkoutOrchestratorService {
       await this.services.storage.stopRecording(session);
       this.setState('idle', { session: { ...session } });
     } else {
-      this.setState('idle', { calibrationProgress: 0, countdown: null });
+      this.setState('idle', { countdown: null });
     }
 
     this.services.camera.stop();
@@ -81,7 +75,6 @@ export class WorkoutOrchestratorService {
     this.state = newState;
     const currentState: WorkoutState = {
       appState: newState,
-      calibrationProgress: 0,
       countdown: null,
       session: null,
       ...partialState,
@@ -106,9 +99,7 @@ export class WorkoutOrchestratorService {
 
       const { bestPrediction } = this.services.prediction.process(video);
 
-      if (this.state === 'calibrating') {
-        this.handleCalibrationFrame(bestPrediction, video);
-      } else if (this.state === 'active') {
+      if (this.state === 'active') {
         this.handleActiveFrame(bestPrediction);
       }
 
@@ -128,17 +119,6 @@ export class WorkoutOrchestratorService {
     };
 
     processFrame();
-  }
-
-  private handleCalibrationFrame(bestPrediction: any, video: HTMLVideoElement): void {
-    this.services.calibration.process(bestPrediction);
-    this.setState(this.state, {
-      calibrationProgress: this.services.calibration.getCalibrationProgress()
-    });
-
-    if (this.services.calibration.isCalibrated()) {
-      this.startCountdown(video);
-    }
   }
 
   private handleActiveFrame(bestPrediction: any): void {
@@ -163,8 +143,9 @@ export class WorkoutOrchestratorService {
     this.setState(this.state, { session: session ? { ...session } : null });
   }
 
-  private startCountdown(video: HTMLVideoElement): void {
+  private startCountdown(video: HTMLVideoElement, canvas: HTMLCanvasElement): void {
     this.setState('countdown');
+    this.startProcessingLoop(video, canvas);
 
     let count = 3;
     this.setState(this.state, { countdown: count });
@@ -189,7 +170,7 @@ export class WorkoutOrchestratorService {
   }
 
   private async transitionToActiveWorkout(video: HTMLVideoElement): Promise<void> {
-    // Setup analysis with calibration thresholds
+    // Setup analysis
     this.services.analysis.resetState();
 
     // Start session and recording

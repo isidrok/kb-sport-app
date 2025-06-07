@@ -72,77 +72,39 @@ export class PredictionAnalysisService {
         // Update position history
         this.updatePositionHistory(bodyPosition);
 
-        // Check if both arms are overhead to prevent individual arm detection
-        const leftOverhead = bodyPosition.leftWrist[1] < bodyPosition.nose[1] - 50;
-        const rightOverhead = bodyPosition.rightWrist[1] < bodyPosition.nose[1] - 50;
-        const bothArmsOverhead = leftOverhead && rightOverhead;
-
-        // Check if either arm is already in progress (overhead or complete state)
-        const leftInProgress = this.leftArmMachine.state === 'overhead' || this.leftArmMachine.state === 'complete';
-        const rightInProgress = this.rightArmMachine.state === 'overhead' || this.rightArmMachine.state === 'complete';
-
-        // If one arm is in progress and the other goes overhead, treat as both-arms movement
-        const shouldTreatAsBoth = bothArmsOverhead ||
-            (leftOverhead && rightInProgress) ||
-            (rightOverhead && leftInProgress);
-
-        // Check for both arms pattern first
+        // Check all patterns - debounce will prevent double counting
         const bothArmsRep = this.analyzeArmPattern(bodyPosition, this.bothArmsMachine, 'both', currentTime);
+        const leftArmRep = this.analyzeArmPattern(bodyPosition, this.leftArmMachine, 'left', currentTime);
+        const rightArmRep = this.analyzeArmPattern(bodyPosition, this.rightArmMachine, 'right', currentTime);
 
+        // Return first detected rep (prioritize both arms, then left, then right) with debounce
         if (bothArmsRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
-            // Reset individual arm machines to prevent double counting
-            this.leftArmMachine = this.createInitialState();
-            this.rightArmMachine = this.createInitialState();
             this.lastRepTime = currentTime;
-            console.log('🏋️ BOTH ARMS REP DETECTED! (Reset individual arms)');
+            console.log('🏋️ BOTH ARMS REP DETECTED!');
             return {
                 detected: true,
                 armType: "both",
                 timestamp: currentTime,
                 confidence: 0.8,
             };
-        }
-
-        // Only check individual arms if we shouldn't treat this as both-arms movement
-        if (!shouldTreatAsBoth) {
-            const leftArmRep = this.analyzeArmPattern(bodyPosition, this.leftArmMachine, 'left', currentTime);
-            const rightArmRep = this.analyzeArmPattern(bodyPosition, this.rightArmMachine, 'right', currentTime);
-
-            if (leftArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
-                this.lastRepTime = currentTime;
-                console.log('🏋️ LEFT ARM REP DETECTED!');
-                return {
-                    detected: true,
-                    armType: "left",
-                    timestamp: currentTime,
-                    confidence: 0.8,
-                };
-            } else if (rightArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
-                this.lastRepTime = currentTime;
-                console.log('🏋️ RIGHT ARM REP DETECTED!');
-                return {
-                    detected: true,
-                    armType: "right",
-                    timestamp: currentTime,
-                    confidence: 0.8,
-                };
-            }
-        } else if (shouldTreatAsBoth) {
-            // Should treat as both-arms - reset individual machines and ensure both-arms machine is active
-            if (leftInProgress || rightInProgress) {
-                console.log('🔄 Converting individual arm movement to both-arms movement');
-                this.leftArmMachine = this.createInitialState();
-                this.rightArmMachine = this.createInitialState();
-
-                // Kickstart both-arms machine if not already active
-                if (this.bothArmsMachine.state === 'ready' && bothArmsOverhead) {
-                    this.bothArmsMachine.state = 'overhead';
-                    this.bothArmsMachine.lastStateChange = currentTime;
-                    this.bothArmsMachine.repStartTime = currentTime;
-                    this.bothArmsMachine.overheadDetectedTime = currentTime;
-                    console.log('🔄 Starting both-arms detection');
-                }
-            }
+        } else if (leftArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+            this.lastRepTime = currentTime;
+            console.log('🏋️ LEFT ARM REP DETECTED!');
+            return {
+                detected: true,
+                armType: "left",
+                timestamp: currentTime,
+                confidence: 0.8,
+            };
+        } else if (rightArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+            this.lastRepTime = currentTime;
+            console.log('🏋️ RIGHT ARM REP DETECTED!');
+            return {
+                detected: true,
+                armType: "right",
+                timestamp: currentTime,
+                confidence: 0.8,
+            };
         }
 
         return { detected: false, armType: "both", timestamp: currentTime, confidence: 0 };

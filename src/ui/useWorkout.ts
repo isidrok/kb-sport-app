@@ -7,7 +7,6 @@ export function useWorkout() {
 
   const [workoutData, setWorkoutData] = useState<WorkoutState>({
     appState: 'idle',
-    calibrationProgress: 0,
     countdown: null,
     session: null,
   });
@@ -68,8 +67,6 @@ export function useWorkout() {
     appState: workoutData.appState,
     isSessionActive: workoutData.appState === 'active',
     currentSession: workoutData.session,
-    isCalibrating: workoutData.appState === 'calibrating',
-    calibrationProgress: workoutData.calibrationProgress,
     countdown: workoutData.countdown,
     error,
     isModelLoading,

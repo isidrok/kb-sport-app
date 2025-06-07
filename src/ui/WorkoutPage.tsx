@@ -5,11 +5,8 @@ export function WorkoutPage() {
   const {
     videoRef,
     canvasRef,
-    videoContainerRef,
     isSessionActive,
     currentSession,
-    isCalibrating,
-    calibrationProgress,
     countdown,
     error,
     isModelLoading,
@@ -19,7 +16,7 @@ export function WorkoutPage() {
 
   return (
     <div className={styles.workoutPage}>
-      <div ref={videoContainerRef} className={styles.videoContainer}>
+      <div className={styles.videoContainer}>
         <video
           ref={videoRef}
           className={styles.video}
@@ -69,19 +66,6 @@ export function WorkoutPage() {
               </div>
             )}
             
-            {isCalibrating && (
-              <div className={styles.calibrationStatus}>
-                <p>📏 Calibrating... Position yourself in the overhead hold</p>
-                <div className={styles.progressBar}>
-                  <div 
-                    className={styles.progressFill} 
-                    style={{ width: `${calibrationProgress * 100}%` }}
-                  />
-                </div>
-                <p>{Math.round(calibrationProgress * 100)}% complete</p>
-              </div>
-            )}
-            
             {countdown !== null && (
               <div className={styles.countdownDisplay}>
                 <p>Get ready!</p>
@@ -93,16 +77,14 @@ export function WorkoutPage() {
           <button
             className={`${styles.sessionButton} ${isSessionActive ? styles.stop : styles.start}`}
             onClick={isSessionActive ? stopSession : startSession}
-            disabled={isModelLoading || isCalibrating || countdown !== null || error !== null}
+            disabled={isModelLoading || countdown !== null || error !== null}
           >
             {isModelLoading
               ? '🧠 Loading Model...'
               : error
                 ? '❌ Error'
-              : isCalibrating 
-                ? '⏳ Calibrating...' 
-                : countdown !== null
-                  ? `⏳ Starting in ${countdown}...`
+              : countdown !== null
+                ? `⏳ Starting in ${countdown}...`
                 : isSessionActive 
                   ? '⏹️ Stop Session' 
                   : '▶️ Start Session'
