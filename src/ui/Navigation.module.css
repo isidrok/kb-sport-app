@@ -1,0 +1,43 @@
+.nav {
+  display: flex;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+}
+
+.navButton {
+  flex: 1;
+  padding: 1rem;
+  border: none;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.navButton:hover {
+  background-color: var(--background);
+  color: var(--text-primary);
+}
+
+.navButton.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  background-color: var(--background);
+}
+
+@media (min-width: 768px) {
+  .nav {
+    padding: 0 1rem;
+  }
+  
+  .navButton {
+    flex: none;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+}

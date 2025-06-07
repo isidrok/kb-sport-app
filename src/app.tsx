@@ -1,27 +1,18 @@
 import { useState } from "preact/hooks";
-import { WorkoutView } from "./ui/WorkoutView";
-import { RecordingsList } from "./ui/RecordingsList";
-import { VideoStorage } from "./tracker/video-storage";
+import { Navigation } from "./ui/Navigation";
+import { WorkoutPage } from "./ui/WorkoutPage";
+import { SessionsPage } from "./ui/SessionsPage";
+import styles from "./App.module.css";
 
 export function App() {
-  const [videoStorage] = useState(() => new VideoStorage());
-  const [currentView, setCurrentView] = useState<"workout" | "recordings">(
-    "workout"
-  );
+  const [currentPage, setCurrentPage] = useState<'workout' | 'sessions'>('workout');
 
   return (
-    <div class="app">
-      {currentView === "workout" ? (
-        <WorkoutView
-          onViewChange={() => setCurrentView("recordings")}
-          videoStorage={videoStorage}
-        />
-      ) : (
-        <RecordingsList
-          videoStorage={videoStorage}
-          onBack={() => setCurrentView("workout")}
-        />
-      )}
+    <div className={styles.app}>
+      <Navigation currentPage={currentPage} onPageChange={setCurrentPage} />
+      <main className={styles.main}>
+        {currentPage === 'workout' ? <WorkoutPage /> : <SessionsPage />}
+      </main>
     </div>
   );
 }

@@ -1,0 +1,139 @@
+.workoutPage {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--background);
+}
+
+.videoContainer {
+  aspect-ratio: 3/4;
+  width: 100%;
+  background: black;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.video,
+.canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.controls {
+  flex: 1;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background-color: var(--surface);
+  min-height: 0;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.metric {
+  background-color: var(--background);
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-align: center;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.metricValue {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.metricLabel {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.sessionButton {
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-top: auto;
+}
+
+.sessionButton.start {
+  background-color: var(--success);
+  color: white;
+}
+
+.sessionButton.start:hover {
+  background-color: #15803d;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.sessionButton.stop {
+  background-color: var(--danger);
+  color: white;
+}
+
+.sessionButton.stop:hover {
+  background-color: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+@media (min-width: 768px) {
+  .workoutPage {
+    flex-direction: row;
+  }
+  
+  .videoContainer {
+    height: 90vh;
+    width: auto;
+    flex-shrink: 0;
+  }
+  
+  .controls {
+    min-width: 300px;
+    max-width: 400px;
+    height: 90vh;
+  }
+  
+  .metrics {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .metric {
+    padding: 1.5rem;
+  }
+  
+  .metricValue {
+    font-size: 3rem;
+  }
+  
+  .metricLabel {
+    font-size: 0.875rem;
+  }
+}
