@@ -22,7 +22,7 @@ export class StorageService {
     workoutId: string;
     mediaRecorder: MediaRecorder;
     videoWriter: FileSystemWritableFileStream;
-    chunks: Blob[];
+    videoSize: number;
   } | null = null;
 
   async initialize(): Promise<void> {
@@ -47,11 +47,11 @@ export class StorageService {
       mimeType: 'video/webm;codecs=vp9'
     });
 
-    const chunks: Blob[] = [];
+    let videoSize = 0;
 
     mediaRecorder.ondataavailable = async (event) => {
       if (event.data.size > 0) {
-        chunks.push(event.data);
+        videoSize += event.data.size;
         await videoWriter.write(event.data);
       }
     };
@@ -60,7 +60,7 @@ export class StorageService {
       workoutId,
       mediaRecorder,
       videoWriter,
-      chunks,
+      videoSize,
     };
 
     mediaRecorder.start(1000); // Record in 1-second chunks
@@ -72,14 +72,14 @@ export class StorageService {
       throw new Error('No active recording');
     }
 
-    const { workoutId, mediaRecorder, videoWriter, chunks } = this.activeRecording;
+    const { workoutId, mediaRecorder, videoWriter, videoSize } = this.activeRecording;
 
     return new Promise((resolve, reject) => {
       mediaRecorder.onstop = async () => {
         try {
           await videoWriter.close();
 
-          const totalVideoSize = chunks.reduce((size, chunk) => size + chunk.size, 0);
+          const totalVideoSize = videoSize;
           const duration = session.reps.length > 0 
             ? session.reps[session.reps.length - 1].timestamp - session.startTime
             : Date.now() - session.startTime;

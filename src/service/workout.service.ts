@@ -1,8 +1,9 @@
-import { Prediction } from './prediction.service';
+import { Prediction } from "./prediction.service";
+import { CalibrationService } from "./calibration.service";
 
 export interface Rep {
   timestamp: number;
-  handType: 'left' | 'right' | 'both';
+  handType: "left" | "right" | "both";
 }
 
 export interface WorkoutSession {
@@ -15,98 +16,165 @@ export interface WorkoutSession {
 // YOLOv8 COCO pose keypoint indices
 const KEYPOINT_INDICES = {
   nose: 0,
+  left_shoulder: 5,
+  right_shoulder: 6,
+  left_elbow: 7,
+  right_elbow: 8,
   left_wrist: 9,
   right_wrist: 10,
 } as const;
 
 export class WorkoutService {
   private session: WorkoutSession | null = null;
-  private lastHandPositions: { left: boolean; right: boolean } = { left: false, right: false };
   private readonly CONFIDENCE_THRESHOLD = 0.3;
   private readonly REP_COOLDOWN_MS = 500; // Prevent double counting
   private lastRepTime = 0;
+  private calibrationService: CalibrationService;
   
+  // RepTracker-style state tracking
+  private rightReady = false;
+  private leftReady = false;
+  private bothReady = false;
+  private wasRightArmAbove = false;
+  private wasLeftArmAbove = false;
+
+  constructor(calibrationService: CalibrationService) {
+    this.calibrationService = calibrationService;
+  }
+
   startSession(): void {
+    if (!this.calibrationService.isCalibrated()) {
+      throw new Error("Must complete calibration before starting session");
+    }
+    
     this.session = {
       startTime: Date.now(),
       reps: [],
       totalReps: 0,
       repsPerMinute: 0,
     };
-    this.lastHandPositions = { left: false, right: false };
+    this.resetTrackingState();
+  }
+
+  private resetTrackingState(): void {
+    this.rightReady = false;
+    this.leftReady = false;
+    this.bothReady = false;
+    this.wasRightArmAbove = false;
+    this.wasLeftArmAbove = false;
     this.lastRepTime = 0;
+  }
+
+  initializeArmStatesFromCurrentPose(prediction: Prediction): void {
+    if (!this.session) return;
+
+    const armExtension = this.calibrationService.isArmExtendedOverhead(prediction);
+    this.wasRightArmAbove = armExtension.right;
+    this.wasLeftArmAbove = armExtension.left;
+    
+    console.log("WorkoutService: Initialized arm states from current pose - right:", this.wasRightArmAbove, "left:", this.wasLeftArmAbove);
   }
 
   processPose(prediction: Prediction): void {
     if (!this.session) {
-      console.log('WorkoutService: No active session');
+      console.log("WorkoutService: No active session");
       return;
     }
 
     const { keypoints } = prediction;
-    
-    // Get nose position with confidence check
-    const noseKeypoint = keypoints[KEYPOINT_INDICES.nose];
-    console.log('WorkoutService: Nose keypoint:', noseKeypoint, 'confidence:', noseKeypoint[2]);
-    
-    if (noseKeypoint[2] < this.CONFIDENCE_THRESHOLD) {
-      console.log('WorkoutService: Nose confidence too low:', noseKeypoint[2], 'threshold:', this.CONFIDENCE_THRESHOLD);
-      return;
-    }
-    
-    const noseY = noseKeypoint[1];
-    
-    // Get hand positions with confidence checks
+    const nose = keypoints[KEYPOINT_INDICES.nose];
     const leftWrist = keypoints[KEYPOINT_INDICES.left_wrist];
     const rightWrist = keypoints[KEYPOINT_INDICES.right_wrist];
-    
-    console.log('WorkoutService: Left wrist:', leftWrist, 'Right wrist:', rightWrist);
-    console.log('WorkoutService: Nose Y:', noseY);
-    
-    const leftHandOverNose = leftWrist[2] > this.CONFIDENCE_THRESHOLD && leftWrist[1] < noseY;
-    const rightHandOverNose = rightWrist[2] > this.CONFIDENCE_THRESHOLD && rightWrist[1] < noseY;
-    
-    console.log('WorkoutService: Left hand over nose:', leftHandOverNose, 'Right hand over nose:', rightHandOverNose);
-    console.log('WorkoutService: Last positions - Left:', this.lastHandPositions.left, 'Right:', this.lastHandPositions.right);
-    
-    // Check cooldown period to prevent double counting
-    const currentTime = Date.now();
-    if (currentTime - this.lastRepTime < this.REP_COOLDOWN_MS) {
-      console.log('WorkoutService: In cooldown period, time since last rep:', currentTime - this.lastRepTime, 'ms');
-      this.lastHandPositions.left = leftHandOverNose;
-      this.lastHandPositions.right = rightHandOverNose;
+
+    // Check confidence thresholds
+    const noseVisible = nose[2] > this.CONFIDENCE_THRESHOLD;
+    const leftWristVisible = leftWrist[2] > this.CONFIDENCE_THRESHOLD;
+    const rightWristVisible = rightWrist[2] > this.CONFIDENCE_THRESHOLD;
+
+    if (!noseVisible || (!leftWristVisible && !rightWristVisible)) {
       return;
     }
+
+    // Use calibration service to determine if arms are above threshold
+    const armExtension = this.calibrationService.isArmExtendedOverhead(prediction);
+    const rightArmAbove = armExtension.right;
+    const leftArmAbove = armExtension.left;
+
+    const currentTime = Date.now();
     
-    // Detect rep transitions (hand going from below nose to above nose)
-    const leftRepDetected = !this.lastHandPositions.left && leftHandOverNose;
-    const rightRepDetected = !this.lastHandPositions.right && rightHandOverNose;
-    
-    console.log('WorkoutService: Rep detection - Left:', leftRepDetected, 'Right:', rightRepDetected);
-    
-    if (leftRepDetected || rightRepDetected) {
-      const handType = leftRepDetected && rightRepDetected ? 'both' 
-                      : leftRepDetected ? 'left' 
-                      : 'right';
-      
-      console.log('WorkoutService: Rep detected!', handType);
-      this.addRep(handType);
+    // Check cooldown period to prevent double counting
+    if (currentTime - this.lastRepTime < this.REP_COOLDOWN_MS) {
+      return;
+    }
+
+    // RepTracker logic: Check for "both" rep first
+    if (
+      rightArmAbove && 
+      leftArmAbove && 
+      this.bothReady && 
+      !this.wasRightArmAbove && 
+      !this.wasLeftArmAbove
+    ) {
+      this.addRep("both");
+      this.bothReady = false;
+      this.rightReady = false;
+      this.leftReady = false;
       this.lastRepTime = currentTime;
     }
-    
-    // Update last positions
-    this.lastHandPositions.left = leftHandOverNose;
-    this.lastHandPositions.right = rightHandOverNose;
+    // Check for individual arm reps
+    else if (
+      rightArmAbove && 
+      this.rightReady && 
+      !this.wasRightArmAbove
+    ) {
+      this.addRep("right");
+      this.rightReady = false;
+      this.lastRepTime = currentTime;
+    }
+    else if (
+      leftArmAbove && 
+      this.leftReady && 
+      !this.wasLeftArmAbove
+    ) {
+      this.addRep("left");
+      this.leftReady = false;
+      this.lastRepTime = currentTime;
+    }
+
+    // Update readiness states when arms go down
+    if (!rightArmAbove && this.wasRightArmAbove) {
+      this.rightReady = true;
+    }
+    if (!leftArmAbove && this.wasLeftArmAbove) {
+      this.leftReady = true;
+    }
+    if (!rightArmAbove && !leftArmAbove && (this.wasRightArmAbove || this.wasLeftArmAbove)) {
+      this.bothReady = true;
+    }
+
+    // Update previous states
+    this.wasRightArmAbove = rightArmAbove;
+    this.wasLeftArmAbove = leftArmAbove;
+
+    console.log(
+      "WorkoutService: rightAbove:", rightArmAbove,
+      "leftAbove:", leftArmAbove,
+      "rightReady:", this.rightReady,
+      "leftReady:", this.leftReady,
+      "bothReady:", this.bothReady,
+      "wasRightAbove:", this.wasRightArmAbove,
+      "wasLeftAbove:", this.wasLeftArmAbove
+    );
   }
 
-  private addRep(handType: 'left' | 'right' | 'both'): void {
+  private addRep(handType: "left" | "right" | "both"): void {
     if (!this.session) return;
 
     const rep: Rep = {
       timestamp: Date.now(),
       handType,
     };
-    
+
     this.session.reps.push(rep);
     this.session.totalReps++;
     this.updateRepsPerMinute();
@@ -116,15 +184,21 @@ export class WorkoutService {
     if (!this.session) return;
 
     const currentTime = Date.now();
-    const sessionDurationMinutes = (currentTime - this.session.startTime) / (1000 * 60);
-    
+    const sessionDurationMinutes =
+      (currentTime - this.session.startTime) / (1000 * 60);
+
     if (sessionDurationMinutes > 0) {
-      this.session.repsPerMinute = this.session.totalReps / sessionDurationMinutes;
+      this.session.repsPerMinute =
+        this.session.totalReps / sessionDurationMinutes;
     }
   }
 
   getCurrentSession(): WorkoutSession | null {
     return this.session;
+  }
+
+  isCalibrated(): boolean {
+    return this.calibrationService.isCalibrated();
   }
 
   endSession(): WorkoutSession | null {

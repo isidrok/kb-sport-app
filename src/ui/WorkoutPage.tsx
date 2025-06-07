@@ -8,6 +8,9 @@ export function WorkoutPage() {
     videoContainerRef,
     isSessionActive,
     currentSession,
+    isCalibrating,
+    calibrationProgress,
+    countdown,
     startSession,
     stopSession,
   } = useWorkout();
@@ -41,12 +44,44 @@ export function WorkoutPage() {
           </div>
         </div>
         
-        <button
-          className={`${styles.sessionButton} ${isSessionActive ? styles.stop : styles.start}`}
-          onClick={isSessionActive ? stopSession : startSession}
-        >
-          {isSessionActive ? 'Stop Session' : 'Start Session'}
-        </button>
+        <div className={styles.buttonGroup}>
+          <div className={styles.statusContainer}>
+            {isCalibrating && (
+              <div className={styles.calibrationStatus}>
+                <p>📏 Calibrating... Raise your arms fully overhead</p>
+                <div className={styles.progressBar}>
+                  <div 
+                    className={styles.progressFill} 
+                    style={{ width: `${calibrationProgress * 100}%` }}
+                  />
+                </div>
+                <p>{Math.round(calibrationProgress * 100)}% complete</p>
+              </div>
+            )}
+            
+            {countdown !== null && (
+              <div className={styles.countdownDisplay}>
+                <p>Get ready!</p>
+                <div className={styles.countdownNumber}>{countdown}</div>
+              </div>
+            )}
+          </div>
+          
+          <button
+            className={`${styles.sessionButton} ${isSessionActive ? styles.stop : styles.start}`}
+            onClick={isSessionActive ? stopSession : startSession}
+            disabled={isCalibrating || countdown !== null}
+          >
+            {isCalibrating 
+              ? '⏳ Calibrating...' 
+              : countdown !== null
+                ? `⏳ Starting in ${countdown}...`
+              : isSessionActive 
+                ? '⏹️ Stop Session' 
+                : '▶️ Start Session'
+            }
+          </button>
+        </div>
       </div>
     </div>
   );

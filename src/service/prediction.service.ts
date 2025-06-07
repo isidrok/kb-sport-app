@@ -1,13 +1,13 @@
 import {
   loadGraphModel,
   browser as tfBrowser,
-  dispose,
   slice,
   sub,
   div,
   add,
   squeeze,
   concat,
+  tidy,
   type Tensor3D,
   GraphModel,
 } from "@tensorflow/tfjs";
@@ -53,53 +53,60 @@ export class PredictionService {
   }
 
   /**
+   * Dispose of the loaded model and free GPU memory.
+   */
+  dispose(): void {
+    if (this.model) {
+      this.model.dispose();
+      this.model = null;
+    }
+  }
+
+  /**
    * Process a video element and return the best prediction with transformation parameters.
    *
    * @param video - Source video element to process
    * @returns Object containing the best prediction and transformation parameters
    */
-  async process(video: HTMLVideoElement): Promise<{
+  process(video: HTMLVideoElement): {
     bestPrediction: Prediction;
     transformParams: TransformParams;
-  }> {
+  } {
     if (!this.model) {
       throw new Error("Model not initialized. Call initialize() first.");
     }
+    return tidy(() => {
+      // Process video with letterboxing to maintain aspect ratio
+      const { processedImage, transformParams } =
+        this.processVideoWithLetterboxing(video, this.model!);
+      // Run model inference
+      const predictions = this.model!.predict(processedImage) as Tensor3D;
 
-    // Process video with letterboxing to maintain aspect ratio
-    const { processedImage, transformParams } =
-      this.processVideoWithLetterboxing(video, this.model);
+      // Extract best prediction and transform coordinates back to original image space
+      const bestPrediction = this.getBestPredictionSync(predictions);
+      const scaledPrediction = this.scalePrediction(
+        bestPrediction,
+        transformParams
+      );
 
-    // Run model inference
-    const predictions = this.model.predict(processedImage) as Tensor3D;
-
-    // Extract best prediction and transform coordinates back to original image space
-    const bestPrediction = await this.getBestPrediction(predictions);
-    const scaledPrediction = this.scalePrediction(
-      bestPrediction,
-      transformParams
-    );
-
-    // Clean up GPU memory
-    dispose([processedImage, predictions]);
-
-    return {
-      bestPrediction: scaledPrediction,
-      transformParams,
-    };
+      return {
+        bestPrediction: scaledPrediction,
+        transformParams,
+      } as any;
+    });
   }
 
   /**
-   * Extract the best prediction from YOLOv8 pose model output.
+   * Extract the best prediction from YOLOv8 pose model output (synchronous version).
    * Processes the raw model output tensor to find the prediction with highest confidence,
    * converts bounding box from center format to corner format, and formats keypoints.
    *
    * @param predictions - Raw model output tensor with shape [1, 56, 8400]
    *                     56 channels: [x, y, w, h, conf, kpt1_x, kpt1_y, kpt1_c, ..., kpt17_x, kpt17_y, kpt17_c]
    *                     8400 predictions: different potential detections across the image
-   * @returns Promise resolving to the best prediction with bounding box, score, and keypoints
+   * @returns The best prediction with bounding box, score, and keypoints
    */
-  private async getBestPrediction(predictions: Tensor3D): Promise<Prediction> {
+  private getBestPredictionSync(predictions: Tensor3D): Prediction {
     // Reshape predictions from [1, 56, 8400] to [1, 8400, 56] for easier processing
     // Each of the 8400 predictions now has 56 values: [x, y, w, h, conf, kpt1_x, kpt1_y, kpt1_c, ...]
     const reshapedPredictions = predictions.transpose([0, 2, 1]);
@@ -123,30 +130,28 @@ export class PredictionService {
     const allKeypoints = slice(reshapedPredictions, [0, 0, 5], [-1, -1, -1]); // All remaining 51 values (17 keypts × 3)
 
     // Find the prediction with highest confidence
-    const scoresArray = await confidenceScores.data();
+    const scoresArray = confidenceScores.dataSync();
     const bestPredictionIndex = scoresArray.indexOf(Math.max(...scoresArray));
     const bestConfidence = scoresArray[bestPredictionIndex];
 
     // Extract the best bounding box [x1, y1, x2, y2]
-    const bestBoundingBox = squeeze(
-      concat(
-        [
-          slice(x1, [0, bestPredictionIndex, 0], [1, 1, 1]),
-          slice(y1, [0, bestPredictionIndex, 0], [1, 1, 1]),
-          slice(x2, [0, bestPredictionIndex, 0], [1, 1, 1]),
-          slice(y2, [0, bestPredictionIndex, 0], [1, 1, 1]),
-        ],
-        2
-      )
-    );
+    const x1Slice = slice(x1, [0, bestPredictionIndex, 0], [1, 1, 1]);
+    const y1Slice = slice(y1, [0, bestPredictionIndex, 0], [1, 1, 1]);
+    const x2Slice = slice(x2, [0, bestPredictionIndex, 0], [1, 1, 1]);
+    const y2Slice = slice(y2, [0, bestPredictionIndex, 0], [1, 1, 1]);
+    const concatResult = concat([x1Slice, y1Slice, x2Slice, y2Slice], 2);
+    const bestBoundingBox = squeeze(concatResult);
 
     // Extract the best keypoints (51 values: 17 keypoints × 3 values each)
-    const bestKeypointsTensor = squeeze(
-      slice(allKeypoints, [0, bestPredictionIndex, 0], [1, 1, -1])
+    const keypointsSlice = slice(
+      allKeypoints,
+      [0, bestPredictionIndex, 0],
+      [1, 1, -1]
     );
+    const bestKeypointsTensor = squeeze(keypointsSlice);
 
     // Convert keypoints tensor to array and group into [x, y, confidence] triplets
-    const keypointsData = [...(await bestKeypointsTensor.data())];
+    const keypointsData = [...bestKeypointsTensor.dataSync()];
     const formattedKeypoints: Keypoint[] = [];
 
     for (let i = 0; i < keypointsData.length; i += 3) {
@@ -156,26 +161,7 @@ export class PredictionService {
       formattedKeypoints.push([x, y, confidence]);
     }
 
-    const boxData = [...(await bestBoundingBox.data())] as BoundingBox;
-
-    // Clean up tensors to prevent memory leaks
-    dispose([
-      reshapedPredictions,
-      centerX,
-      centerY,
-      width,
-      height,
-      halfWidth,
-      halfHeight,
-      x1,
-      y1,
-      x2,
-      y2,
-      confidenceScores,
-      allKeypoints,
-      bestBoundingBox,
-      bestKeypointsTensor,
-    ]);
+    const boxData = [...bestBoundingBox.dataSync()] as BoundingBox;
 
     return {
       box: boxData,
@@ -241,9 +227,6 @@ export class PredictionService {
     const scale = targetSquareSize / modelWidth; // Scale factor to map from model space back to letterboxed space
     const xOffset = leftPadding; // X displacement caused by letterboxing
     const yOffset = topPadding; // Y displacement caused by letterboxing
-
-    // Clean up intermediate tensors
-    dispose([originalImageTensor, letterboxedImage, resizedImage]);
 
     return {
       processedImage: batchedImage as Tensor3D,
