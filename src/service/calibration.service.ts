@@ -1,23 +1,34 @@
 import { Prediction } from "./prediction.service";
 import { COCO_KEYPOINTS } from "../config/coco-keypoints";
 
+const CALIBRATION_CONFIG = {
+  CONFIDENCE_THRESHOLD: 0.3,
+  SAMPLES_NEEDED: 30,
+  ERROR_MARGIN: 0.4,
+  // Anchor points for calibration
+  LEFT_ARM_ANCHOR: COCO_KEYPOINTS.left_wrist,
+  RIGHT_ARM_ANCHOR: COCO_KEYPOINTS.right_wrist,
+  HEAD_ANCHOR: COCO_KEYPOINTS.nose,
+} as const;
+
+interface ArmData {
+  samples: number[];
+  threshold: number | null;
+}
+
+export interface CalibrationThresholds {
+  left: number;
+  right: number;
+}
+
 export class CalibrationService {
-  private readonly CONFIDENCE_THRESHOLD = 0.3;
-  private readonly CALIBRATION_SAMPLES_NEEDED = 30;
-  private readonly THRESHOLD_ERROR_MARGIN = 0.4;
-
   private isCalibrating = false;
-  private leftArmSamples: number[] = [];
-  private rightArmSamples: number[] = [];
-  private leftArmThreshold: number | null = null;
-  private rightArmThreshold: number | null = null;
+  private leftArm: ArmData = { samples: [], threshold: null };
+  private rightArm: ArmData = { samples: [], threshold: null };
 
-  startCalibration(): void {
+  start(): void {
     this.isCalibrating = true;
-    this.leftArmSamples = [];
-    this.rightArmSamples = [];
-    this.leftArmThreshold = null;
-    this.rightArmThreshold = null;
+    this.resetArmData();
   }
 
   isCalibrationActive(): boolean {
@@ -25,114 +36,92 @@ export class CalibrationService {
   }
 
   getCalibrationProgress(): number {
-    const totalSamples = Math.max(
-      this.leftArmSamples.length,
-      this.rightArmSamples.length
-    );
-    return totalSamples / this.CALIBRATION_SAMPLES_NEEDED;
+    const totalSamples = Math.max(this.leftArm.samples.length, this.rightArm.samples.length);
+    return totalSamples / CALIBRATION_CONFIG.SAMPLES_NEEDED;
   }
 
   isCalibrated(): boolean {
-    return this.leftArmThreshold !== null && this.rightArmThreshold !== null;
+    return this.leftArm.threshold !== null && this.rightArm.threshold !== null;
   }
 
-  getThresholds(): { left: number | null; right: number | null } {
-    return { left: this.leftArmThreshold, right: this.rightArmThreshold };
+  getThresholds(): CalibrationThresholds | null {
+    if (!this.isCalibrated()) {
+      return null;
+    }
+
+    return {
+      left: this.leftArm.threshold!,
+      right: this.rightArm.threshold!
+    };
   }
 
   resetCalibration(): void {
     this.isCalibrating = false;
-    this.leftArmSamples = [];
-    this.rightArmSamples = [];
-    this.leftArmThreshold = null;
-    this.rightArmThreshold = null;
+    this.resetArmData();
   }
 
-  processPose(prediction: Prediction): void {
+  process(prediction: Prediction): void {
     if (!this.isCalibrating) return;
 
     const { keypoints } = prediction;
-    const leftArmAnchor = keypoints[COCO_KEYPOINTS.left_wrist];
-    const rightArmAnchor = keypoints[COCO_KEYPOINTS.right_wrist];
-    const leftShoulder = keypoints[COCO_KEYPOINTS.left_shoulder];
-    const rightShoulder = keypoints[COCO_KEYPOINTS.right_shoulder];
+    const leftArmAnchor = keypoints[CALIBRATION_CONFIG.LEFT_ARM_ANCHOR];
+    const rightArmAnchor = keypoints[CALIBRATION_CONFIG.RIGHT_ARM_ANCHOR];
+    const headAnchor = keypoints[CALIBRATION_CONFIG.HEAD_ANCHOR];
 
-    const leftVisible = leftArmAnchor[2] > this.CONFIDENCE_THRESHOLD;
-    const rightVisible = rightArmAnchor[2] > this.CONFIDENCE_THRESHOLD;
-    const leftShoulderVisible = leftShoulder[2] > this.CONFIDENCE_THRESHOLD;
-    const rightShoulderVisible = rightShoulder[2] > this.CONFIDENCE_THRESHOLD;
-
-    // Only collect samples when both arms are extended (above shoulders)
-    const leftExtended =
-      leftVisible && leftShoulderVisible && leftArmAnchor[1] < leftShoulder[1];
-    const rightExtended =
-      rightVisible &&
-      rightShoulderVisible &&
-      rightArmAnchor[1] < rightShoulder[1];
+    // Check if both arms are extended (required for calibration)
+    const leftExtended = this.isArmExtended(leftArmAnchor, headAnchor);
+    const rightExtended = this.isArmExtended(rightArmAnchor, headAnchor);
 
     if (!leftExtended || !rightExtended) {
       return; // Don't collect samples unless both arms are extended
     }
 
-    if (
-      leftVisible &&
-      this.leftArmSamples.length < this.CALIBRATION_SAMPLES_NEEDED
-    ) {
-      this.leftArmSamples.push(leftArmAnchor[1]);
-    }
+    // Collect samples for each arm
+    this.collectArmSample(this.leftArm, leftArmAnchor);
+    this.collectArmSample(this.rightArm, rightArmAnchor);
 
-    if (
-      rightVisible &&
-      this.rightArmSamples.length < this.CALIBRATION_SAMPLES_NEEDED
-    ) {
-      this.rightArmSamples.push(rightArmAnchor[1]);
-    }
-
-    if (
-      this.leftArmSamples.length >= this.CALIBRATION_SAMPLES_NEEDED &&
-      this.rightArmSamples.length >= this.CALIBRATION_SAMPLES_NEEDED
-    ) {
+    // Check if calibration is complete
+    if (this.isSamplingComplete()) {
       this.finishCalibration();
     }
   }
 
+  // Private helper methods
+  private resetArmData(): void {
+    this.leftArm = { samples: [], threshold: null };
+    this.rightArm = { samples: [], threshold: null };
+  }
+
+  private isArmExtended(armAnchor: number[], headAnchor: number[]): boolean {
+    const armVisible = armAnchor[2] > CALIBRATION_CONFIG.CONFIDENCE_THRESHOLD;
+    const headVisible = headAnchor[2] > CALIBRATION_CONFIG.CONFIDENCE_THRESHOLD;
+    const armAboveHead = armAnchor[1] < headAnchor[1];
+
+    return armVisible && headVisible && armAboveHead;
+  }
+
+  private collectArmSample(armData: ArmData, armAnchor: number[]): void {
+    const armVisible = armAnchor[2] > CALIBRATION_CONFIG.CONFIDENCE_THRESHOLD;
+
+    if (armVisible && armData.samples.length < CALIBRATION_CONFIG.SAMPLES_NEEDED) {
+      armData.samples.push(armAnchor[1]); // y-coordinate
+    }
+  }
+
+  private isSamplingComplete(): boolean {
+    return (
+      this.leftArm.samples.length >= CALIBRATION_CONFIG.SAMPLES_NEEDED &&
+      this.rightArm.samples.length >= CALIBRATION_CONFIG.SAMPLES_NEEDED
+    );
+  }
+
   private finishCalibration(): void {
-    // Calculate average threshold for left arm
-    const leftAverage =
-      this.leftArmSamples.reduce((sum, val) => sum + val, 0) /
-      this.leftArmSamples.length;
-    this.leftArmThreshold = leftAverage;
-
-    // Calculate average threshold for right arm
-    const rightAverage =
-      this.rightArmSamples.reduce((sum, val) => sum + val, 0) /
-      this.rightArmSamples.length;
-    this.rightArmThreshold = rightAverage;
-
+    this.leftArm.threshold = this.calculateAverage(this.leftArm.samples);
+    this.rightArm.threshold = this.calculateAverage(this.rightArm.samples);
     this.isCalibrating = false;
   }
 
-  isArmInThreshold(prediction: Prediction): { left: boolean; right: boolean } {
-    if (!this.isCalibrated()) {
-      return { left: false, right: false };
-    }
-
-    const { keypoints } = prediction;
-    const leftArmAnchor = keypoints[COCO_KEYPOINTS.left_wrist];
-    const rightArmAnchor = keypoints[COCO_KEYPOINTS.right_wrist];
-
-    const leftVisible = leftArmAnchor[2] > this.CONFIDENCE_THRESHOLD;
-    const rightVisible = rightArmAnchor[2] > this.CONFIDENCE_THRESHOLD;
-
-    const leftInThreshold =
-      leftVisible &&
-      Math.abs(leftArmAnchor[1] - this.leftArmThreshold!) <=
-        this.leftArmThreshold! * this.THRESHOLD_ERROR_MARGIN;
-    const rightInThreshold =
-      rightVisible &&
-      Math.abs(rightArmAnchor[1] - this.rightArmThreshold!) <=
-        this.rightArmThreshold! * this.THRESHOLD_ERROR_MARGIN;
-
-    return { left: leftInThreshold, right: rightInThreshold };
+  private calculateAverage(samples: number[]): number {
+    return samples.reduce((sum, val) => sum + val, 0) / samples.length;
   }
 }

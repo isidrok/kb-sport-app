@@ -1,6 +1,3 @@
-import { Prediction } from "./prediction.service";
-import { CalibrationService } from "./calibration.service";
-
 export interface Rep {
   timestamp: number;
   armType: "left" | "right" | "both";
@@ -14,27 +11,15 @@ export interface WorkoutSession {
   estimatedRepsPerMinute: number;
 }
 
+const SESSION_CONFIG = {
+  RPM_WINDOW_MS: 60000, // 1 minute window for RPM calculation
+  MAX_RPM_LIMIT: 60,    // Maximum realistic RPM
+} as const;
+
 export class RepCountingService {
-  private readonly DEBOUNCE_MS = 500;
-  private readonly RPM_WINDOW = 60000;
-
   private session: WorkoutSession | null = null;
-  private calibrationService: CalibrationService;
 
-  // Rep tracking state
-  private leftArmInThreshold = false;
-  private rightArmInThreshold = false;
-  private lastRepTime = 0;
-
-  constructor(calibrationService: CalibrationService) {
-    this.calibrationService = calibrationService;
-  }
-
-  startSession(): void {
-    if (!this.calibrationService.isCalibrated()) {
-      throw new Error("Must complete calibration before starting session");
-    }
-
+  start(): void {
     this.session = {
       startTime: Date.now(),
       reps: [],
@@ -42,10 +27,9 @@ export class RepCountingService {
       repsPerMinute: 0,
       estimatedRepsPerMinute: 0,
     };
-    this.resetTrackingState();
   }
 
-  endSession(): WorkoutSession | null {
+  stop(): WorkoutSession | null {
     const finalSession = this.session;
     this.session = null;
     return finalSession;
@@ -55,99 +39,86 @@ export class RepCountingService {
     return this.session;
   }
 
-  processPose(prediction: Prediction): void {
-    if (!this.session) return;
-
-    const armStatus = this.calibrationService.isArmInThreshold(prediction);
-    const currentTime = Date.now();
-
-    // Global debounce check
-    if (currentTime - this.lastRepTime < this.DEBOUNCE_MS) {
-      this.leftArmInThreshold = armStatus.left;
-      this.rightArmInThreshold = armStatus.right;
-      return;
-    }
-
-    // Check if any arm entered threshold
-    const leftEntered = armStatus.left && !this.leftArmInThreshold;
-    const rightEntered = armStatus.right && !this.rightArmInThreshold;
-
-    // Prioritize "both" rep when both arms enter threshold simultaneously
-    if (leftEntered && rightEntered) {
-      this.addRep("both");
-      this.lastRepTime = currentTime;
-    }
-    // Single arm reps
-    else if (leftEntered) {
-      this.addRep("left");
-      this.lastRepTime = currentTime;
-    }
-    else if (rightEntered) {
-      this.addRep("right");
-      this.lastRepTime = currentTime;
-    }
-
-    this.leftArmInThreshold = armStatus.left;
-    this.rightArmInThreshold = armStatus.right;
+  isSessionActive(): boolean {
+    return this.session !== null;
   }
 
-  private resetTrackingState(): void {
-    this.leftArmInThreshold = false;
-    this.rightArmInThreshold = false;
-    this.lastRepTime = 0;
-  }
-
-  private addRep(armType: "left" | "right" | "both"): void {
+  addRep(armType: "left" | "right" | "both", timestamp: number = Date.now()): void {
     if (!this.session) return;
 
-    const rep: Rep = {
-      timestamp: Date.now(),
-      armType,
-    };
+    const rep: Rep = { timestamp, armType };
 
     this.session.reps.push(rep);
     this.session.totalReps++;
     this.updateRepsPerMinute();
-    this.session.estimatedRepsPerMinute = this.getEstimatedRPM();
+    this.session.estimatedRepsPerMinute = this.calculateEstimatedRPM();
   }
 
+  getSessionStats(): {
+    duration: number;
+    totalReps: number;
+    repsPerMinute: number;
+    estimatedRepsPerMinute: number;
+  } | null {
+    if (!this.session) return null;
+
+    const currentTime = Date.now();
+    const duration = currentTime - this.session.startTime;
+
+    return {
+      duration,
+      totalReps: this.session.totalReps,
+      repsPerMinute: this.session.repsPerMinute,
+      estimatedRepsPerMinute: this.session.estimatedRepsPerMinute,
+    };
+  }
+
+  // Private helper methods
   private updateRepsPerMinute(): void {
     if (!this.session) return;
 
     const currentTime = Date.now();
-    const sessionDurationMinutes =
-      (currentTime - this.session.startTime) / (1000 * 60);
+    const sessionDurationMinutes = (currentTime - this.session.startTime) / (1000 * 60);
 
     if (sessionDurationMinutes > 0) {
-      this.session.repsPerMinute =
-        this.session.totalReps / sessionDurationMinutes;
+      this.session.repsPerMinute = this.session.totalReps / sessionDurationMinutes;
     }
   }
 
-  private getEstimatedRPM(): number {
+  private calculateEstimatedRPM(): number {
     if (!this.session || this.session.reps.length < 2) {
       return this.session?.reps.length || 0;
     }
 
     const currentTime = Date.now();
-    const recentReps = this.session.reps.filter(
-      (rep) => currentTime - rep.timestamp <= this.RPM_WINDOW
-    );
+    const recentReps = this.getRecentReps(currentTime);
 
     if (recentReps.length < 2) {
       return recentReps.length;
     }
 
-    const intervals: number[] = [];
-    for (let i = 1; i < recentReps.length; i++) {
-      intervals.push(recentReps[i].timestamp - recentReps[i - 1].timestamp);
-    }
-
-    const averageInterval =
-      intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+    const averageInterval = this.calculateAverageInterval(recentReps);
 
     return averageInterval
-      ? Math.min(Math.round(this.RPM_WINDOW / averageInterval), 60)
+      ? Math.min(Math.round(SESSION_CONFIG.RPM_WINDOW_MS / averageInterval), SESSION_CONFIG.MAX_RPM_LIMIT)
       : recentReps.length;
+  }
+
+  private getRecentReps(currentTime: number): Rep[] {
+    if (!this.session) return [];
+
+    return this.session.reps.filter(
+      (rep) => currentTime - rep.timestamp <= SESSION_CONFIG.RPM_WINDOW_MS
+    );
+  }
+
+  private calculateAverageInterval(reps: Rep[]): number {
+    const intervals: number[] = [];
+
+    for (let i = 1; i < reps.length; i++) {
+      intervals.push(reps[i].timestamp - reps[i - 1].timestamp);
+    }
+
+    return intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
   }
 }

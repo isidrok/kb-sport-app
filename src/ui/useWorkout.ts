@@ -1,45 +1,36 @@
 import { useRef, useEffect, useState } from "preact/hooks";
-import { WorkoutOrchestratorService, AppState, WorkoutCallbacks } from "../service/workout-orchestrator.service";
-import { WorkoutSession } from "../service/rep-counting.service";
+import { WorkoutOrchestratorService, WorkoutState } from "../service/workout-orchestrator.service";
 
 export function useWorkout() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const videoContainerRef = useRef<HTMLDivElement>(null);
-  
-  const [appState, setAppState] = useState<AppState>('idle');
-  const [currentSession, setCurrentSession] = useState<WorkoutSession | null>(null);
-  const [calibrationProgress, setCalibrationProgress] = useState(0);
-  const [countdown, setCountdown] = useState<number | null>(null);
+
+  const [workoutData, setWorkoutData] = useState<WorkoutState>({
+    appState: 'idle',
+    calibrationProgress: 0,
+    countdown: null,
+    session: null,
+  });
   const [error, setError] = useState<string | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(true);
 
-  const callbacks: WorkoutCallbacks = {
-    onStateChange: setAppState,
-    onCalibrationProgress: setCalibrationProgress,
-    onCountdown: setCountdown,
-    onSessionUpdate: setCurrentSession,
-    onError: (errorMessage: string) => {
-      console.error(errorMessage);
-      setError(errorMessage);
-    },
-  };
+  const workoutServiceRef = useRef<WorkoutOrchestratorService>();
 
-  const orchestratorRef = useRef<WorkoutOrchestratorService>();
-  
-  if (!orchestratorRef.current) {
-    orchestratorRef.current = new WorkoutOrchestratorService(callbacks);
+  if (!workoutServiceRef.current) {
+    workoutServiceRef.current = new WorkoutOrchestratorService({
+      onChange: setWorkoutData
+    });
   }
-  
-  const orchestrator = orchestratorRef.current;
+
+  const workoutService = workoutServiceRef.current;
 
   useEffect(() => {
     const initialize = async () => {
       try {
-        await orchestrator.initialize();
+        await workoutService.initialize();
         setIsModelLoading(false);
       } catch (error) {
-        console.error("Failed to initialize orchestrator:", error);
+        console.error("Failed to initialize workout service:", error);
         setError("Failed to load pose detection model. Please refresh the page.");
         setIsModelLoading(false);
       }
@@ -48,39 +39,38 @@ export function useWorkout() {
     initialize();
 
     return () => {
-      orchestrator.dispose();
+      workoutService.dispose();
     };
-  }, [orchestrator]);
-
-  // Set DOM elements when they're available
-  useEffect(() => {
-    if (videoRef.current && canvasRef.current && videoContainerRef.current) {
-      orchestrator.setElements(
-        videoRef.current,
-        canvasRef.current,
-        videoContainerRef.current
-      );
-    }
-  }, [orchestrator]);
+  }, []);
 
   const startSession = async () => {
     setError(null);
-    await orchestrator.startSession();
+    try {
+      await workoutService.start(videoRef.current!, canvasRef.current!);
+    } catch (error) {
+      console.error("Failed to start session:", error);
+      setError("Failed to start workout session. Please try again.");
+    }
   };
 
   const stopSession = async () => {
-    await orchestrator.stopSession();
+    try {
+      await workoutService.stop();
+    } catch (error) {
+      console.error("Failed to stop session:", error);
+      setError("Failed to stop workout session.");
+    }
   };
 
   return {
     videoRef,
     canvasRef,
-    videoContainerRef,
-    isSessionActive: appState === 'active',
-    currentSession,
-    isCalibrating: appState === 'calibrating',
-    calibrationProgress,
-    countdown,
+    appState: workoutData.appState,
+    isSessionActive: workoutData.appState === 'active',
+    currentSession: workoutData.session,
+    isCalibrating: workoutData.appState === 'calibrating',
+    calibrationProgress: workoutData.calibrationProgress,
+    countdown: workoutData.countdown,
     error,
     isModelLoading,
     startSession,

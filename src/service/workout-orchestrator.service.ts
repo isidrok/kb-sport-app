@@ -3,243 +3,191 @@ import { PredictionService } from "./prediction.service";
 import { RenderingService } from "./rendering.service";
 import { CalibrationService } from "./calibration.service";
 import { RepCountingService, WorkoutSession } from "./rep-counting.service";
+import { PredictionAnalysisService } from "./prediction-analysis.service";
 import { StorageService } from "./storage.service";
 
 export type AppState = 'idle' | 'calibrating' | 'countdown' | 'active';
 
+export interface WorkoutState {
+  appState: AppState;
+  calibrationProgress: number;
+  countdown: number | null;
+  session: WorkoutSession | null;
+}
+
 export interface WorkoutCallbacks {
-  onStateChange: (state: AppState) => void;
-  onCalibrationProgress: (progress: number) => void;
-  onCountdown: (count: number | null) => void;
-  onSessionUpdate: (session: WorkoutSession | null) => void;
-  onError: (error: string) => void;
+  onChange: (state: WorkoutState) => void;
 }
 
 export class WorkoutOrchestratorService {
   private state: AppState = 'idle';
   private animationFrameId: number | null = null;
   private countdownInterval: number | null = null;
-  
-  private videoElement: HTMLVideoElement | null = null;
-  private canvasElement: HTMLCanvasElement | null = null;
-  private containerElement: HTMLDivElement | null = null;
-  
   private callbacks: WorkoutCallbacks;
-  
+
   private readonly services = {
     camera: new CameraService(),
     prediction: new PredictionService(),
     rendering: new RenderingService(),
     calibration: new CalibrationService(),
+    analysis: new PredictionAnalysisService(),
+    repCounting: new RepCountingService(),
     storage: new StorageService(),
   };
-  
-  private repCountingService: RepCountingService;
 
   constructor(callbacks: WorkoutCallbacks) {
     this.callbacks = callbacks;
-    this.repCountingService = new RepCountingService(this.services.calibration);
   }
 
   async initialize(): Promise<void> {
-    try {
-      await this.services.prediction.initialize();
-      await this.services.storage.initialize();
-    } catch (error) {
-      this.callbacks.onError(`Failed to initialize services: ${error}`);
-      throw error;
-    }
+    await Promise.all([
+      this.services.prediction.initialize(),
+      this.services.storage.initialize()
+    ]);
   }
 
-  setElements(
-    video: HTMLVideoElement, 
-    canvas: HTMLCanvasElement, 
-    container: HTMLDivElement
-  ): void {
-    this.videoElement = video;
-    this.canvasElement = canvas;
-    this.containerElement = container;
+  async start(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<void> {
+    if (this.state !== 'idle') return;
+
+    this.setState('calibrating', { session: null, calibrationProgress: 0 });
+
+    // Get canvas dimensions for camera setup
+    const { width, height } = canvas.getBoundingClientRect();
+    await this.services.camera.start(width, height, video);
+    this.services.calibration.start();
+    this.startProcessingLoop(video, canvas);
   }
 
-  async startSession(): Promise<void> {
-    if (!this.videoElement || !this.canvasElement || !this.containerElement) {
-      this.callbacks.onError('Missing required DOM elements');
-      return;
+  async stop(): Promise<void> {
+    this.stopProcessing();
+
+    const session = this.services.repCounting.stop();
+    if (session) {
+      await this.services.storage.stopRecording(session);
+      this.setState('idle', { session: { ...session } });
+    } else {
+      this.setState('idle', { calibrationProgress: 0, countdown: null });
     }
 
-    if (this.state !== 'idle') {
-      this.callbacks.onError('Session already in progress');
-      return;
-    }
-
-    try {
-      // Clear previous session data when starting new session
-      this.callbacks.onSessionUpdate(null);
-      
-      // Start camera
-      const containerRect = this.containerElement.getBoundingClientRect();
-      await this.services.camera.start(
-        containerRect.width, 
-        containerRect.height, 
-        this.videoElement
-      );
-
-      // Start calibration
-      this.services.calibration.startCalibration();
-      this.setState('calibrating');
-      this.callbacks.onCalibrationProgress(0);
-      
-      // Start pose detection loop
-      this.startPoseDetection();
-    } catch (error) {
-      this.callbacks.onError(`Failed to start session: ${error}`);
-      this.setState('idle');
-    }
-  }
-
-  async stopSession(): Promise<void> {
-    try {
-      // Stop detection loop
-      this.stopPoseDetection();
-      this.clearCountdown();
-
-      // Stop workout session if active and preserve final stats
-      const session = this.repCountingService.endSession();
-      if (session) {
-        await this.services.storage.stopRecording(session);
-        // Send final session stats to UI (don't clear them)
-        this.callbacks.onSessionUpdate({ ...session });
-      }
-
-      // Stop camera
-      this.services.camera.stop();
-      
-      // Reset state but keep session data
-      this.setState('idle');
-      this.callbacks.onCalibrationProgress(0);
-      this.callbacks.onCountdown(null);
-      // Note: NOT calling onSessionUpdate(null) to preserve stats
-    } catch (error) {
-      this.callbacks.onError(`Failed to stop session: ${error}`);
-    }
+    this.services.camera.stop();
   }
 
   dispose(): void {
-    this.stopSession();
+    this.stop();
     this.services.prediction.dispose();
   }
 
-  getCurrentState(): AppState {
-    return this.state;
-  }
-
-  private setState(newState: AppState): void {
+  private setState(newState: AppState, partialState: Partial<Omit<WorkoutState, 'appState'>> = {}): void {
     this.state = newState;
-    this.callbacks.onStateChange(newState);
-  }
-
-  private startPoseDetection(): void {
-    const detectPoses = () => {
-      if (!this.videoElement || !this.canvasElement || !this.containerElement || this.state === 'idle') {
-        return;
-      }
-
-      try {
-        const { bestPrediction } = this.services.prediction.process(this.videoElement);
-        
-        // Process pose for calibration or workout
-        if (this.services.calibration.isCalibrationActive()) {
-          this.services.calibration.processPose(bestPrediction);
-        } else {
-          this.repCountingService.processPose(bestPrediction);
-        }
-        
-        // Handle state transitions
-        this.handleStateTransitions();
-
-        // Render
-        const containerRect = this.containerElement.getBoundingClientRect();
-        this.services.rendering.render({
-          source: this.videoElement,
-          target: this.canvasElement,
-          score: bestPrediction.score,
-          box: bestPrediction.box,
-          keypoints: bestPrediction.keypoints,
-          width: containerRect.width,
-          height: containerRect.height,
-        });
-      } catch (error) {
-        console.error("Pose detection error:", error);
-      }
-
-      if (this.state === 'calibrating' || this.state === 'countdown' || this.state === 'active') {
-        this.animationFrameId = requestAnimationFrame(detectPoses);
-      }
+    const currentState: WorkoutState = {
+      appState: newState,
+      calibrationProgress: 0,
+      countdown: null,
+      session: null,
+      ...partialState,
     };
-
-    detectPoses();
+    this.callbacks.onChange(currentState);
   }
 
-  private stopPoseDetection(): void {
+  private stopProcessing(): void {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-  }
-
-  private handleStateTransitions(): void {
-    if (this.state === 'calibrating') {
-      // Update calibration progress
-      this.callbacks.onCalibrationProgress(this.services.calibration.getCalibrationProgress());
-      
-      // Check if calibration completed
-      if (this.services.calibration.isCalibrated() && !this.services.calibration.isCalibrationActive()) {
-        this.setState('countdown');
-        this.startCountdown();
-      }
-    } else if (this.state === 'active') {
-      // Update session data
-      const session = this.repCountingService.getCurrentSession();
-      this.callbacks.onSessionUpdate(session ? { ...session } : null);
-    }
-  }
-
-  private startCountdown(): void {
-    let count = 3;
-    this.callbacks.onCountdown(count);
-    
-    this.countdownInterval = window.setInterval(() => {
-      count--;
-      if (count > 0) {
-        this.callbacks.onCountdown(count);
-      } else {
-        this.clearCountdown();
-        // Set state to active BEFORE clearing countdown to prevent flicker
-        this.setState('active');
-        this.callbacks.onCountdown(null);
-        this.startWorkoutSession();
-      }
-    }, 1000);
-  }
-
-  private clearCountdown(): void {
     if (this.countdownInterval) {
       clearInterval(this.countdownInterval);
       this.countdownInterval = null;
     }
   }
 
-  private async startWorkoutSession(): Promise<void> {
-    try {
-      this.repCountingService.startSession();
-      
-      const stream = this.videoElement!.srcObject as MediaStream;
-      await this.services.storage.startRecording(stream);
+  private startProcessingLoop(video: HTMLVideoElement, canvas: HTMLCanvasElement): void {
+    const processFrame = () => {
+      if (this.state === 'idle') return;
 
-      // State is already set to 'active' in countdown, so no need to set it again
-    } catch (error) {
-      this.callbacks.onError(`Failed to start workout session: ${error}`);
-      this.setState('idle');
+      const { bestPrediction } = this.services.prediction.process(video);
+
+      if (this.state === 'calibrating') {
+        this.handleCalibrationFrame(bestPrediction, video);
+      } else if (this.state === 'active') {
+        this.handleActiveFrame(bestPrediction);
+      }
+
+      // Render frame
+      const { width, height } = canvas.getBoundingClientRect();
+      this.services.rendering.render({
+        source: video,
+        target: canvas,
+        score: bestPrediction.score,
+        box: bestPrediction.box,
+        keypoints: bestPrediction.keypoints,
+        width,
+        height,
+      });
+
+      this.animationFrameId = requestAnimationFrame(processFrame);
+    };
+
+    processFrame();
+  }
+
+  private handleCalibrationFrame(bestPrediction: any, video: HTMLVideoElement): void {
+    this.services.calibration.process(bestPrediction);
+    this.setState(this.state, {
+      calibrationProgress: this.services.calibration.getCalibrationProgress()
+    });
+
+    if (this.services.calibration.isCalibrated()) {
+      this.startCountdown(video);
     }
+  }
+
+  private handleActiveFrame(bestPrediction: any): void {
+    const repDetection = this.services.analysis.analyzeForRep(bestPrediction);
+
+    if (repDetection.detected) {
+      this.services.repCounting.addRep(repDetection.armType, repDetection.timestamp);
+    }
+
+    const session = this.services.repCounting.getCurrentSession();
+    this.setState(this.state, { session: session ? { ...session } : null });
+  }
+
+  private startCountdown(video: HTMLVideoElement): void {
+    this.setState('countdown');
+
+    let count = 3;
+    this.setState(this.state, { countdown: count });
+
+    this.countdownInterval = window.setInterval(() => {
+      count--;
+      if (count > 0) {
+        this.setState(this.state, { countdown: count });
+      } else {
+        this.stopCountdown();
+        this.transitionToActiveWorkout(video);
+      }
+    }, 1000);
+  }
+
+  private stopCountdown(): void {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
+    this.setState(this.state, { countdown: null });
+  }
+
+  private async transitionToActiveWorkout(video: HTMLVideoElement): Promise<void> {
+    // Setup analysis with calibration thresholds
+    const thresholds = this.services.calibration.getThresholds()!;
+    this.services.analysis.setThresholds(thresholds);
+    this.services.analysis.resetState();
+
+    // Start session and recording
+    this.services.repCounting.start();
+    const stream = video.srcObject as MediaStream;
+    await this.services.storage.startRecording(stream);
+
+    this.setState('active');
   }
 }
