@@ -1,7 +1,8 @@
 import { CameraService } from "./camera.service";
 import { PredictionService } from "./prediction.service";
 import { RenderingService } from "./rendering.service";
-import { WorkoutService, WorkoutSession } from "./workout.service";
+import { CalibrationService } from "./calibration.service";
+import { RepCountingService, WorkoutSession } from "./rep-counting.service";
 import { StorageService } from "./storage.service";
 
 export type AppState = 'idle' | 'calibrating' | 'countdown' | 'active';
@@ -29,12 +30,15 @@ export class WorkoutOrchestratorService {
     camera: new CameraService(),
     prediction: new PredictionService(),
     rendering: new RenderingService(),
-    workout: new WorkoutService(),
+    calibration: new CalibrationService(),
     storage: new StorageService(),
   };
+  
+  private repCountingService: RepCountingService;
 
   constructor(callbacks: WorkoutCallbacks) {
     this.callbacks = callbacks;
+    this.repCountingService = new RepCountingService(this.services.calibration);
   }
 
   async initialize(): Promise<void> {
@@ -81,7 +85,7 @@ export class WorkoutOrchestratorService {
       );
 
       // Start calibration
-      this.services.workout.startCalibration();
+      this.services.calibration.startCalibration();
       this.setState('calibrating');
       this.callbacks.onCalibrationProgress(0);
       
@@ -100,7 +104,7 @@ export class WorkoutOrchestratorService {
       this.clearCountdown();
 
       // Stop workout session if active and preserve final stats
-      const session = this.services.workout.endSession();
+      const session = this.repCountingService.endSession();
       if (session) {
         await this.services.storage.stopRecording(session);
         // Send final session stats to UI (don't clear them)
@@ -144,9 +148,13 @@ export class WorkoutOrchestratorService {
         const { bestPrediction } = this.services.prediction.process(this.videoElement);
         
         // Process pose for calibration or workout
-        this.services.workout.processPose(bestPrediction);
+        if (this.services.calibration.isCalibrationActive()) {
+          this.services.calibration.processPose(bestPrediction);
+        } else {
+          this.repCountingService.processPose(bestPrediction);
+        }
         
-        // Handle state transitions based on workout service state
+        // Handle state transitions
         this.handleStateTransitions();
 
         // Render
@@ -182,16 +190,16 @@ export class WorkoutOrchestratorService {
   private handleStateTransitions(): void {
     if (this.state === 'calibrating') {
       // Update calibration progress
-      this.callbacks.onCalibrationProgress(this.services.workout.getCalibrationProgress());
+      this.callbacks.onCalibrationProgress(this.services.calibration.getCalibrationProgress());
       
       // Check if calibration completed
-      if (this.services.workout.isCalibrated() && !this.services.workout.isCalibrationActive()) {
+      if (this.services.calibration.isCalibrated() && !this.services.calibration.isCalibrationActive()) {
         this.setState('countdown');
         this.startCountdown();
       }
     } else if (this.state === 'active') {
       // Update session data
-      const session = this.services.workout.getCurrentSession();
+      const session = this.repCountingService.getCurrentSession();
       this.callbacks.onSessionUpdate(session ? { ...session } : null);
     }
   }
@@ -223,7 +231,7 @@ export class WorkoutOrchestratorService {
 
   private async startWorkoutSession(): Promise<void> {
     try {
-      this.services.workout.startSession();
+      this.repCountingService.startSession();
       
       const stream = this.videoElement!.srcObject as MediaStream;
       await this.services.storage.startRecording(stream);

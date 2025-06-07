@@ -1,18 +1,11 @@
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
   background-color: var(--background);
+  height: 100%;
 }
 
 .main {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-}
-
-@media (min-width: 768px) {
-  .app {
-    flex-direction: column;
-  }
 }

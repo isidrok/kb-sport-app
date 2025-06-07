@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "preact/hooks";
 import { WorkoutOrchestratorService, AppState, WorkoutCallbacks } from "../service/workout-orchestrator.service";
-import { WorkoutSession } from "../service/workout.service";
+import { WorkoutSession } from "../service/rep-counting.service";
 
 export function useWorkout() {
   const videoRef = useRef<HTMLVideoElement>(null);

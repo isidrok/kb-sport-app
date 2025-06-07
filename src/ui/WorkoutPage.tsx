@@ -71,7 +71,7 @@ export function WorkoutPage() {
             
             {isCalibrating && (
               <div className={styles.calibrationStatus}>
-                <p>📏 Calibrating... Raise your arms fully overhead</p>
+                <p>📏 Calibrating... Position yourself in the overhead hold</p>
                 <div className={styles.progressBar}>
                   <div 
                     className={styles.progressFill} 

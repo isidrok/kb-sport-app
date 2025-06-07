@@ -1,4 +1,4 @@
-import { WorkoutSession, Rep } from './workout.service';
+import { WorkoutSession, Rep } from './rep-counting.service';
 
 export interface WorkoutMetadata {
   id: string;
