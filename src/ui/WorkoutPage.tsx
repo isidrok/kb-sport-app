@@ -11,6 +11,8 @@ export function WorkoutPage() {
     isCalibrating,
     calibrationProgress,
     countdown,
+    error,
+    isModelLoading,
     startSession,
     stopSession,
   } = useWorkout();
@@ -40,12 +42,33 @@ export function WorkoutPage() {
             <div className={styles.metricValue}>
               {currentSession ? Math.round(currentSession.repsPerMinute) : 0}
             </div>
-            <div className={styles.metricLabel}>Reps/Min</div>
+            <div className={styles.metricLabel}>Avg RPM</div>
+          </div>
+          <div className={styles.metric}>
+            <div className={styles.metricValue}>
+              {currentSession?.estimatedRepsPerMinute || 0}
+            </div>
+            <div className={styles.metricLabel}>Current RPM</div>
           </div>
         </div>
         
         <div className={styles.buttonGroup}>
           <div className={styles.statusContainer}>
+            {isModelLoading && (
+              <div className={styles.calibrationStatus}>
+                <p>🧠 Loading pose detection model...</p>
+                <div className={styles.progressBar}>
+                  <div className={styles.progressFill} style={{ width: '100%', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className={styles.calibrationStatus}>
+                <p>❌ {error}</p>
+              </div>
+            )}
+            
             {isCalibrating && (
               <div className={styles.calibrationStatus}>
                 <p>📏 Calibrating... Raise your arms fully overhead</p>
@@ -70,15 +93,19 @@ export function WorkoutPage() {
           <button
             className={`${styles.sessionButton} ${isSessionActive ? styles.stop : styles.start}`}
             onClick={isSessionActive ? stopSession : startSession}
-            disabled={isCalibrating || countdown !== null}
+            disabled={isModelLoading || isCalibrating || countdown !== null || error !== null}
           >
-            {isCalibrating 
-              ? '⏳ Calibrating...' 
-              : countdown !== null
-                ? `⏳ Starting in ${countdown}...`
-              : isSessionActive 
-                ? '⏹️ Stop Session' 
-                : '▶️ Start Session'
+            {isModelLoading
+              ? '🧠 Loading Model...'
+              : error
+                ? '❌ Error'
+              : isCalibrating 
+                ? '⏳ Calibrating...' 
+                : countdown !== null
+                  ? `⏳ Starting in ${countdown}...`
+                : isSessionActive 
+                  ? '⏹️ Stop Session' 
+                  : '▶️ Start Session'
             }
           </button>
         </div>
