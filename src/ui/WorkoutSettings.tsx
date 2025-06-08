@@ -8,7 +8,7 @@ export interface WorkoutSettings {
   beepInterval: number; // beep every X units (0 = disabled)
   beepUnit: "reps" | "seconds"; // unit for beeps
   announcementInterval: number; // announce every X units (0 = disabled)
-  announcementUnit: "reps" | "minutes"; // unit for announcements
+  announcementUnit: "reps" | "seconds"; // unit for announcements
 }
 
 interface WorkoutSettingsProps {
@@ -118,26 +118,22 @@ export function WorkoutSettingsMenu({
 
               <div className={styles.settingGroup}>
                 <label className={styles.settingLabel}>
-                  Session Duration (minutes)
+                  Session Duration (seconds)
                 </label>
                 <input
                   type="number"
                   className={styles.settingInput}
-                  value={
-                    settings.sessionDuration
-                      ? Math.round(settings.sessionDuration / 60)
-                      : ""
-                  }
+                  value={settings.sessionDuration || ""}
                   onChange={(e) => {
                     const value = parseInt(e.currentTarget.value) || 0;
                     handleSettingChange(
                       "sessionDuration",
-                      value === 0 ? null : value * 60
+                      value === 0 ? null : value
                     );
                   }}
                   disabled={disabled}
                   min="0"
-                  max="180"
+                  max="10800"
                   placeholder="0 for unlimited"
                 />
               </div>
@@ -226,14 +222,14 @@ export function WorkoutSettingsMenu({
                           ...settings,
                           announcementUnit: e.currentTarget.value as
                             | "reps"
-                            | "minutes",
+                            | "seconds",
                         };
                         onSettingsChange(newSettings);
                       }}
                       disabled={disabled}
                     >
                       <option value="reps">reps</option>
-                      <option value="minutes">minutes</option>
+                      <option value="seconds">seconds</option>
                     </select>
                   </div>
                 </div>

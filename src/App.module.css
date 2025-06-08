@@ -1,11 +1,10 @@
 .app {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   background-color: var(--background);
   height: 100%;
 }
 
 .main {
-  flex: 1;
-  min-height: 0;
+  height: 100%;
+  width: 100%;
 }

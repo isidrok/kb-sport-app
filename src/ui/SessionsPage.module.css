@@ -5,38 +5,6 @@
   color: white;
 }
 
-.header {
-  padding: 1.5rem;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-  color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.stats {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 500;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius);
-  backdrop-filter: blur(8px);
-}
-
 .empty {
   display: flex;
   flex-direction: column;
@@ -197,12 +165,13 @@
 }
 
 .chartTitle {
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
   color: white;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   text-align: center;
 }
+
 
 .chartBars {
   display: flex;
@@ -259,14 +228,6 @@
 
 /* Mobile responsive styles */
 @media (max-width: 640px) {
-  .header {
-    padding: 1rem;
-  }
-
-  .title {
-    font-size: 1.25rem;
-  }
-
   .sessionsList {
     padding: 1rem;
     gap: 1rem;
@@ -297,14 +258,6 @@
 }
 
 @media (min-width: 768px) {
-  .header {
-    padding: 2rem;
-  }
-
-  .title {
-    font-size: 2rem;
-  }
-
   .sessionsList {
     padding: 2rem;
     gap: 1.5rem;

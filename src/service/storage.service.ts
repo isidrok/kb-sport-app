@@ -132,9 +132,12 @@ export class StorageService {
   // Settings persistence using localStorage
   saveSettings(settings: WorkoutSettings): void {
     try {
-      localStorage.setItem(STORAGE_CONFIG.SETTINGS_KEY, JSON.stringify(settings));
+      localStorage.setItem(
+        STORAGE_CONFIG.SETTINGS_KEY,
+        JSON.stringify(settings)
+      );
     } catch (error) {
-      console.warn('Failed to save settings:', error);
+      console.warn("Failed to save settings:", error);
     }
   }
 
@@ -143,7 +146,7 @@ export class StorageService {
       const stored = localStorage.getItem(STORAGE_CONFIG.SETTINGS_KEY);
       return stored ? JSON.parse(stored) : null;
     } catch (error) {
-      console.warn('Failed to load settings:', error);
+      console.warn("Failed to load settings:", error);
       return null;
     }
   }
@@ -153,10 +156,10 @@ export class StorageService {
       countdownDuration: 3,
       sessionDuration: null,
       autoStopOnTimeLimit: false,
-      beepInterval: 5,
-      beepUnit: 'reps',
-      announcementInterval: 1,
-      announcementUnit: 'minutes',
+      beepInterval: 0,
+      beepUnit: "reps",
+      announcementInterval: 0,
+      announcementUnit: "seconds",
     };
   }
 

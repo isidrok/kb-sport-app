@@ -1,68 +1,52 @@
-.nav {
-  display: flex;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.navButton {
-  flex: 1;
-  padding: 1rem 1.5rem;
-  border: none;
-  background: transparent;
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border-bottom: 2px solid transparent;
-  position: relative;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
-
-.navButton:hover {
-  background: rgba(255, 255, 255, 0.1);
+.floatingToggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  background-color: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
   color: white;
-  transform: translateY(-1px);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.navButton.active {
-  color: #60a5fa;
-  border-bottom-color: #60a5fa;
-  background: rgba(96, 165, 250, 0.1);
-  box-shadow: 0 0 20px rgba(96, 165, 250, 0.2);
+.floatingToggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
-.navButton.active::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #60a5fa, transparent);
+.floatingToggle:active {
+  transform: scale(0.95);
 }
 
 /* Mobile responsive styles */
 @media (max-width: 640px) {
-  .navButton {
-    padding: 0.875rem 1rem;
-    font-size: 0.8rem;
+  .floatingToggle {
+    width: 50px;
+    height: 50px;
+    bottom: 15px;
+    right: 15px;
+    font-size: 1.2rem;
   }
 }
 
-/* Desktop styles */
+/* Tablet and larger screens */
 @media (min-width: 768px) {
-  .nav {
-    padding: 0 1rem;
-  }
-  
-  .navButton {
-    padding: 1.25rem 2rem;
-    font-size: 0.9rem;
+  .floatingToggle {
+    width: 70px;
+    height: 70px;
+    bottom: 30px;
+    right: 30px;
+    font-size: 1.75rem;
   }
 }

@@ -153,7 +153,7 @@
 }
 
 .numberInput {
-  flex: 1;
+  flex: 0 0 70%;
   background-color: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: calc(var(--radius) * 0.75);
@@ -163,6 +163,7 @@
   transition: all 0.2s ease;
   -webkit-appearance: none;
   -moz-appearance: textfield;
+  text-align: center;
 }
 
 .numberInput::-webkit-outer-spin-button,
@@ -172,8 +173,7 @@
 }
 
 .unitSelect {
-  flex: 0 0 auto;
-  min-width: 80px;
+  flex: 0 0 30%;
   background-color: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: calc(var(--radius) * 0.75);
@@ -262,8 +262,8 @@
 }
 
 .checkboxLabel input[type="checkbox"]:checked {
-  background-color: var(--primary-color, #007acc);
-  border-color: var(--primary-color, #007acc);
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
 .checkboxLabel input[type="checkbox"]:checked::after {
@@ -280,8 +280,8 @@
 
 .checkboxLabel input[type="checkbox"]:focus {
   outline: none;
-  border-color: var(--primary-color, #007acc);
-  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
 }
 
 .checkboxLabel input[type="checkbox"]:disabled {

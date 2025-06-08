@@ -6,20 +6,17 @@ interface NavigationProps {
 }
 
 export function Navigation({ currentPage, onPageChange }: NavigationProps) {
+  const handleToggle = () => {
+    onPageChange(currentPage === 'workout' ? 'sessions' : 'workout');
+  };
+
   return (
-    <nav className={styles.nav}>
-      <button
-        className={`${styles.navButton} ${currentPage === 'workout' ? styles.active : ''}`}
-        onClick={() => onPageChange('workout')}
-      >
-        Workout
-      </button>
-      <button
-        className={`${styles.navButton} ${currentPage === 'sessions' ? styles.active : ''}`}
-        onClick={() => onPageChange('sessions')}
-      >
-        Sessions
-      </button>
-    </nav>
+    <button
+      className={styles.floatingToggle}
+      onClick={handleToggle}
+      title={`Switch to ${currentPage === 'workout' ? 'Sessions' : 'Workout'}`}
+    >
+      {currentPage === 'workout' ? '📊' : '🦾'}
+    </button>
   );
 }

@@ -123,10 +123,10 @@ export class AudioFeedbackService {
           this.lastAnnouncementValue = session.totalReps;
         }
       } else {
-        // Time-based announcements (minutes)
+        // Time-based announcements (seconds)
         const timeSinceLastAnnouncement =
           currentTime - this.lastAnnouncementValue;
-        const intervalMs = this.settings.announcementInterval * 60 * 1000;
+        const intervalMs = this.settings.announcementInterval * 1000;
 
         console.log("Time announcement check:", { 
           timeSinceLastAnnouncement, 
