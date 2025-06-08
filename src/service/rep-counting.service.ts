@@ -13,7 +13,7 @@ export interface WorkoutSession {
 
 const SESSION_CONFIG = {
   RPM_WINDOW_MS: 60000, // 1 minute window for RPM calculation
-  MAX_RPM_LIMIT: 60,    // Maximum realistic RPM
+  MAX_RPM_LIMIT: 60, // Maximum realistic RPM
 } as const;
 
 export class RepCountingService {
@@ -43,7 +43,10 @@ export class RepCountingService {
     return this.session !== null;
   }
 
-  addRep(armType: "left" | "right" | "both", timestamp: number = Date.now()): void {
+  addRep(
+    armType: "left" | "right" | "both",
+    timestamp: number = Date.now()
+  ): void {
     if (!this.session) return;
 
     const rep: Rep = { timestamp, armType };
@@ -78,10 +81,12 @@ export class RepCountingService {
     if (!this.session) return;
 
     const currentTime = Date.now();
-    const sessionDurationMinutes = (currentTime - this.session.startTime) / (1000 * 60);
+    const sessionDurationMinutes =
+      (currentTime - this.session.startTime) / (1000 * 60);
 
     if (sessionDurationMinutes > 0) {
-      this.session.repsPerMinute = this.session.totalReps / sessionDurationMinutes;
+      this.session.repsPerMinute =
+        this.session.totalReps / sessionDurationMinutes;
     }
   }
 
@@ -100,7 +105,10 @@ export class RepCountingService {
     const averageInterval = this.calculateAverageInterval(recentReps);
 
     return averageInterval
-      ? Math.min(Math.round(SESSION_CONFIG.RPM_WINDOW_MS / averageInterval), SESSION_CONFIG.MAX_RPM_LIMIT)
+      ? Math.min(
+          Math.round(SESSION_CONFIG.RPM_WINDOW_MS / averageInterval),
+          SESSION_CONFIG.MAX_RPM_LIMIT
+        )
       : recentReps.length;
   }
 
@@ -119,6 +127,8 @@ export class RepCountingService {
       intervals.push(reps[i].timestamp - reps[i - 1].timestamp);
     }
 
-    return intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+    return (
+      intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length
+    );
   }
 }

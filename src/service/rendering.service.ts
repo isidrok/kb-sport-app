@@ -1,16 +1,5 @@
 import type { BoundingBox, Keypoint } from "./prediction.service";
-
-const RENDERING_CONFIG = {
-  CONFIDENCE_THRESHOLD: 0.5,
-  BOUNDING_BOX: {
-    COLOR: "lime",
-    LINE_WIDTH: 2,
-  },
-  KEYPOINTS: {
-    COLOR: "red",
-    RADIUS: 5,
-  },
-} as const;
+import { CONFIDENCE_THRESHOLD } from "../config/services.config";
 
 /** Props for rendering predictions on canvas */
 export interface RenderPredictionProps {
@@ -34,7 +23,7 @@ export class RenderingService {
     const { target, box, keypoints, source, score } = props;
 
     // Skip rendering if prediction confidence is too low
-    if (score < RENDERING_CONFIG.CONFIDENCE_THRESHOLD) {
+    if (score < CONFIDENCE_THRESHOLD) {
       return;
     }
 
@@ -53,7 +42,12 @@ export class RenderingService {
     this.drawKeypoints(ctx, keypoints, width);
   }
 
-  private drawVideo(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, width: number, height: number): void {
+  private drawVideo(
+    ctx: CanvasRenderingContext2D,
+    video: HTMLVideoElement,
+    width: number,
+    height: number
+  ): void {
     // Flip video horizontally for mirror effect
     ctx.save();
     ctx.scale(-1, 1);
@@ -61,26 +55,34 @@ export class RenderingService {
     ctx.restore();
   }
 
-  private drawBoundingBox(ctx: CanvasRenderingContext2D, box: BoundingBox, width: number): void {
+  private drawBoundingBox(
+    ctx: CanvasRenderingContext2D,
+    box: BoundingBox,
+    width: number
+  ): void {
     const [x1, y1, x2, y2] = box;
 
     // Flip coordinates to match flipped video
     const flippedX1 = width - x2;
     const flippedX2 = width - x1;
 
-    ctx.strokeStyle = RENDERING_CONFIG.BOUNDING_BOX.COLOR;
-    ctx.lineWidth = RENDERING_CONFIG.BOUNDING_BOX.LINE_WIDTH;
+    ctx.strokeStyle = "lime";
+    ctx.lineWidth = 2;
     ctx.strokeRect(flippedX1, y1, flippedX2 - flippedX1, y2 - y1);
   }
 
-  private drawKeypoints(ctx: CanvasRenderingContext2D, keypoints: Keypoint[], width: number): void {
-    ctx.fillStyle = RENDERING_CONFIG.KEYPOINTS.COLOR;
+  private drawKeypoints(
+    ctx: CanvasRenderingContext2D,
+    keypoints: Keypoint[],
+    width: number
+  ): void {
+    ctx.fillStyle = "red";
 
     for (const [x, y, confidence] of keypoints) {
-      if (confidence > RENDERING_CONFIG.CONFIDENCE_THRESHOLD) {
+      if (confidence > CONFIDENCE_THRESHOLD) {
         const flippedX = width - x;
         ctx.beginPath();
-        ctx.arc(flippedX, y, RENDERING_CONFIG.KEYPOINTS.RADIUS, 0, 2 * Math.PI);
+        ctx.arc(flippedX, y, 5, 0, 2 * Math.PI);
         ctx.fill();
       }
     }
