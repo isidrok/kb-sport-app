@@ -27,11 +27,19 @@ export interface RepDetection {
 }
 
 export class PredictionAnalysisService {
-  private stateMachine: ArmStateMachine = this.createInitialState();
+  private stateMachines: Record<"left" | "right" | "both", ArmStateMachine> = {
+    left: this.createInitialState(),
+    right: this.createInitialState(),
+    both: this.createInitialState(),
+  };
   private lastRepTime = 0;
 
   resetState(): void {
-    this.stateMachine = this.createInitialState();
+    this.stateMachines = {
+      left: this.createInitialState(),
+      right: this.createInitialState(),
+      both: this.createInitialState(),
+    };
     this.lastRepTime = 0;
   }
 
@@ -47,23 +55,31 @@ export class PredictionAnalysisService {
       };
     }
 
-    // Check for debounce first
-    if (currentTime - this.lastRepTime <= ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
-      return {
-        detected: false,
-        armType: "both",
-        timestamp: currentTime,
-      };
-    }
+    // Check all patterns and apply debounce per detection (like working version)
+    const bothArmsRep = this.analyzeArmPattern(prediction, "both", currentTime);
+    const leftArmRep = this.analyzeArmPattern(prediction, "left", currentTime);
+    const rightArmRep = this.analyzeArmPattern(prediction, "right", currentTime);
 
-    // Check all arm patterns and return the first detected rep (prioritize both arms, then left, then right)
-    const detectedArmType = this.detectRepPattern(prediction, currentTime);
-    
-    if (detectedArmType) {
+    // Return first detected rep (prioritize both arms, then left, then right) with debounce
+    if (bothArmsRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
       this.lastRepTime = currentTime;
       return {
         detected: true,
-        armType: detectedArmType,
+        armType: "both",
+        timestamp: currentTime,
+      };
+    } else if (leftArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+      this.lastRepTime = currentTime;
+      return {
+        detected: true,
+        armType: "left",
+        timestamp: currentTime,
+      };
+    } else if (rightArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+      this.lastRepTime = currentTime;
+      return {
+        detected: true,
+        armType: "right",
         timestamp: currentTime,
       };
     }
@@ -92,46 +108,53 @@ export class PredictionAnalysisService {
     const rightWrist = keypoints[COCO_KEYPOINTS.right_wrist];
     const nose = keypoints[COCO_KEYPOINTS.nose];
 
-    return (
-      leftWrist[2] >= CONFIDENCE_THRESHOLD &&
-      rightWrist[2] >= CONFIDENCE_THRESHOLD &&
-      nose[2] >= CONFIDENCE_THRESHOLD
-    );
+    // Require nose for reference point
+    if (nose[2] < CONFIDENCE_THRESHOLD) {
+      return false;
+    }
+
+    // Require at least one wrist to be detected with sufficient confidence
+    return leftWrist[2] >= CONFIDENCE_THRESHOLD || rightWrist[2] >= CONFIDENCE_THRESHOLD;
   }
 
-  private detectRepPattern(prediction: Prediction, currentTime: number): "left" | "right" | "both" | null {
-    // Check both arms first (highest priority)
-    if (this.analyzeArmPattern(prediction, "both", currentTime)) {
-      return "both";
-    }
-    
-    // Check left arm
-    if (this.analyzeArmPattern(prediction, "left", currentTime)) {
-      return "left";
-    }
-    
-    // Check right arm
-    if (this.analyzeArmPattern(prediction, "right", currentTime)) {
-      return "right";
-    }
-    
-    return null;
-  }
 
   private analyzeArmPattern(
     prediction: Prediction,
     armType: "left" | "right" | "both",
     currentTime: number
   ): boolean {
-    const overhead = this.isArmOverhead(prediction, armType);
+    // Check if required keypoints are available for this arm type
+    const { keypoints } = prediction;
+    const leftWrist = keypoints[COCO_KEYPOINTS.left_wrist];
+    const rightWrist = keypoints[COCO_KEYPOINTS.right_wrist];
+    
+    if (armType === "both") {
+      // For both arms, require both wrists to be detected
+      if (leftWrist[2] < CONFIDENCE_THRESHOLD || rightWrist[2] < CONFIDENCE_THRESHOLD) {
+        return false;
+      }
+    } else if (armType === "left") {
+      // For left arm, only require left wrist
+      if (leftWrist[2] < CONFIDENCE_THRESHOLD) {
+        return false;
+      }
+    } else if (armType === "right") {
+      // For right arm, only require right wrist
+      if (rightWrist[2] < CONFIDENCE_THRESHOLD) {
+        return false;
+      }
+    }
 
-    switch (this.stateMachine.state) {
+    const overhead = this.isArmOverhead(prediction, armType);
+    const stateMachine = this.stateMachines[armType];
+
+    switch (stateMachine.state) {
       case "ready":
-        return this.handleReadyState(overhead, currentTime);
+        return this.handleReadyState(overhead, currentTime, armType);
       case "overhead":
-        return this.handleOverheadState(overhead, currentTime);
+        return this.handleOverheadState(overhead, currentTime, armType);
       case "complete":
-        return this.handleCompleteState(overhead, currentTime);
+        return this.handleCompleteState(overhead, currentTime, armType);
       default:
         return false;
     }
@@ -144,52 +167,67 @@ export class PredictionAnalysisService {
     const nose = keypoints[COCO_KEYPOINTS.nose];
 
     if (armType === "both") {
-      return leftWrist[1] < nose[1] - 50 && rightWrist[1] < nose[1] - 50;
+      // Only check arms that have sufficient confidence
+      const leftValid = leftWrist[2] >= CONFIDENCE_THRESHOLD;
+      const rightValid = rightWrist[2] >= CONFIDENCE_THRESHOLD;
+      
+      // Both arms must be detected and overhead
+      return leftValid && rightValid && 
+             leftWrist[1] < nose[1] - 50 && rightWrist[1] < nose[1] - 50;
     }
     
     const wrist = armType === "left" ? leftWrist : rightWrist;
+    
+    // Check if the specific arm has sufficient confidence before checking position
+    if (wrist[2] < CONFIDENCE_THRESHOLD) {
+      return false;
+    }
+    
     return wrist[1] < nose[1] - 50;
   }
 
-  private handleReadyState(overhead: boolean, currentTime: number): boolean {
+  private handleReadyState(overhead: boolean, currentTime: number, armType: "left" | "right" | "both"): boolean {
+    const stateMachine = this.stateMachines[armType];
     if (overhead) {
-      this.stateMachine.state = "overhead";
-      this.stateMachine.lastStateChange = currentTime;
-      this.stateMachine.repStartTime = currentTime;
-      this.stateMachine.overheadDetectedTime = currentTime;
+      stateMachine.state = "overhead";
+      stateMachine.lastStateChange = currentTime;
+      stateMachine.repStartTime = currentTime;
+      stateMachine.overheadDetectedTime = currentTime;
     }
     return false;
   }
 
-  private handleOverheadState(overhead: boolean, currentTime: number): boolean {
-    const holdTime = currentTime - this.stateMachine.overheadDetectedTime;
+  private handleOverheadState(overhead: boolean, currentTime: number, armType: "left" | "right" | "both"): boolean {
+    const stateMachine = this.stateMachines[armType];
+    const holdTime = currentTime - stateMachine.overheadDetectedTime;
 
     if (holdTime > ANALYSIS_CONFIG.OVERHEAD_HOLD_MS) {
-      this.stateMachine.state = "complete";
-      this.stateMachine.lastStateChange = currentTime;
-      this.stateMachine.belowHeadStartTime = 0;
+      stateMachine.state = "complete";
+      stateMachine.lastStateChange = currentTime;
+      stateMachine.belowHeadStartTime = 0;
       return true;
     } else if (!overhead) {
-      this.stateMachine.state = "ready";
-      this.stateMachine.lastStateChange = currentTime;
+      stateMachine.state = "ready";
+      stateMachine.lastStateChange = currentTime;
     }
     return false;
   }
 
-  private handleCompleteState(overhead: boolean, currentTime: number): boolean {
+  private handleCompleteState(overhead: boolean, currentTime: number, armType: "left" | "right" | "both"): boolean {
+    const stateMachine = this.stateMachines[armType];
     if (!overhead) {
-      if (this.stateMachine.belowHeadStartTime === 0) {
-        this.stateMachine.belowHeadStartTime = currentTime;
+      if (stateMachine.belowHeadStartTime === 0) {
+        stateMachine.belowHeadStartTime = currentTime;
       }
 
-      const belowHeadTime = currentTime - this.stateMachine.belowHeadStartTime;
+      const belowHeadTime = currentTime - stateMachine.belowHeadStartTime;
       if (belowHeadTime > ANALYSIS_CONFIG.BELOW_HEAD_TIME_MS) {
-        this.stateMachine.state = "ready";
-        this.stateMachine.lastStateChange = currentTime;
-        this.stateMachine.belowHeadStartTime = 0;
+        stateMachine.state = "ready";
+        stateMachine.lastStateChange = currentTime;
+        stateMachine.belowHeadStartTime = 0;
       }
     } else {
-      this.stateMachine.belowHeadStartTime = 0;
+      stateMachine.belowHeadStartTime = 0;
     }
     return false;
   }
