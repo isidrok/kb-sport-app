@@ -11,12 +11,6 @@ const ANALYSIS_CONFIG = {
 
 type RepState = "ready" | "overhead" | "complete";
 
-interface BodyPosition {
-  leftWrist: [number, number, number];
-  rightWrist: [number, number, number];
-  nose: [number, number, number];
-  timestamp: number;
-}
 
 interface ArmStateMachine {
   state: RepState;
@@ -30,94 +24,47 @@ export interface RepDetection {
   detected: boolean;
   armType: "left" | "right" | "both";
   timestamp: number;
-  confidence: number;
 }
 
 export class PredictionAnalysisService {
-  private positionHistory: BodyPosition[] = [];
-  private leftArmMachine: ArmStateMachine = this.createInitialState();
-  private rightArmMachine: ArmStateMachine = this.createInitialState();
-  private bothArmsMachine: ArmStateMachine = this.createInitialState();
+  private stateMachine: ArmStateMachine = this.createInitialState();
   private lastRepTime = 0;
 
   resetState(): void {
-    this.positionHistory = [];
-    this.leftArmMachine = this.createInitialState();
-    this.rightArmMachine = this.createInitialState();
-    this.bothArmsMachine = this.createInitialState();
+    this.stateMachine = this.createInitialState();
     this.lastRepTime = 0;
   }
 
   analyzeForRep(prediction: Prediction): RepDetection {
     const currentTime = Date.now();
 
-    // Extract key body positions
-    const bodyPosition = this.extractBodyPosition(prediction, currentTime);
-    if (!bodyPosition) {
+    // Check if key points are visible
+    if (!this.hasValidKeypoints(prediction)) {
       return {
         detected: false,
         armType: "both",
         timestamp: currentTime,
-        confidence: 0,
       };
     }
 
-    // Update position history
-    this.updatePositionHistory(bodyPosition);
-
-    // Check all patterns - debounce will prevent double counting
-    const bothArmsRep = this.analyzeArmPattern(
-      bodyPosition,
-      this.bothArmsMachine,
-      "both",
-      currentTime
-    );
-    const leftArmRep = this.analyzeArmPattern(
-      bodyPosition,
-      this.leftArmMachine,
-      "left",
-      currentTime
-    );
-    const rightArmRep = this.analyzeArmPattern(
-      bodyPosition,
-      this.rightArmMachine,
-      "right",
-      currentTime
-    );
-
-    // Return first detected rep (prioritize both arms, then left, then right) with debounce
-    if (
-      bothArmsRep &&
-      currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS
-    ) {
-      this.lastRepTime = currentTime;
+    // Check for debounce first
+    if (currentTime - this.lastRepTime <= ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
       return {
-        detected: true,
+        detected: false,
         armType: "both",
         timestamp: currentTime,
-        confidence: 0.8,
       };
-    } else if (
-      leftArmRep &&
-      currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS
-    ) {
+    }
+
+    // Check all arm patterns and return the first detected rep (prioritize both arms, then left, then right)
+    const detectedArmType = this.detectRepPattern(prediction, currentTime);
+    
+    if (detectedArmType) {
       this.lastRepTime = currentTime;
       return {
         detected: true,
-        armType: "left",
+        armType: detectedArmType,
         timestamp: currentTime,
-        confidence: 0.8,
-      };
-    } else if (
-      rightArmRep &&
-      currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS
-    ) {
-      this.lastRepTime = currentTime;
-      return {
-        detected: true,
-        armType: "right",
-        timestamp: currentTime,
-        confidence: 0.8,
       };
     }
 
@@ -125,7 +72,6 @@ export class PredictionAnalysisService {
       detected: false,
       armType: "both",
       timestamp: currentTime,
-      confidence: 0,
     };
   }
 
@@ -139,111 +85,112 @@ export class PredictionAnalysisService {
     };
   }
 
-  private extractBodyPosition(
-    prediction: Prediction,
-    timestamp: number
-  ): BodyPosition | null {
+  private hasValidKeypoints(prediction: Prediction): boolean {
     const { keypoints } = prediction;
 
     const leftWrist = keypoints[COCO_KEYPOINTS.left_wrist];
     const rightWrist = keypoints[COCO_KEYPOINTS.right_wrist];
     const nose = keypoints[COCO_KEYPOINTS.nose];
 
-    // Check if key points are visible
-    if (
-      leftWrist[2] < CONFIDENCE_THRESHOLD ||
-      rightWrist[2] < CONFIDENCE_THRESHOLD ||
-      nose[2] < CONFIDENCE_THRESHOLD
-    ) {
-      return null;
-    }
-
-    return {
-      leftWrist: leftWrist as [number, number, number],
-      rightWrist: rightWrist as [number, number, number],
-      nose: nose as [number, number, number],
-      timestamp,
-    };
+    return (
+      leftWrist[2] >= CONFIDENCE_THRESHOLD &&
+      rightWrist[2] >= CONFIDENCE_THRESHOLD &&
+      nose[2] >= CONFIDENCE_THRESHOLD
+    );
   }
 
-  private updatePositionHistory(newPosition: BodyPosition): void {
-    this.positionHistory.push(newPosition);
-
-    if (this.positionHistory.length > ANALYSIS_CONFIG.SMOOTHING_WINDOW) {
-      this.positionHistory.shift();
+  private detectRepPattern(prediction: Prediction, currentTime: number): "left" | "right" | "both" | null {
+    // Check both arms first (highest priority)
+    if (this.analyzeArmPattern(prediction, "both", currentTime)) {
+      return "both";
     }
+    
+    // Check left arm
+    if (this.analyzeArmPattern(prediction, "left", currentTime)) {
+      return "left";
+    }
+    
+    // Check right arm
+    if (this.analyzeArmPattern(prediction, "right", currentTime)) {
+      return "right";
+    }
+    
+    return null;
   }
 
   private analyzeArmPattern(
-    bodyPosition: BodyPosition,
-    machine: ArmStateMachine,
+    prediction: Prediction,
     armType: "left" | "right" | "both",
     currentTime: number
   ): boolean {
-    // Calculate if the arm(s) are overhead (above head level)
-    let overhead: boolean;
+    const overhead = this.isArmOverhead(prediction, armType);
+
+    switch (this.stateMachine.state) {
+      case "ready":
+        return this.handleReadyState(overhead, currentTime);
+      case "overhead":
+        return this.handleOverheadState(overhead, currentTime);
+      case "complete":
+        return this.handleCompleteState(overhead, currentTime);
+      default:
+        return false;
+    }
+  }
+
+  private isArmOverhead(prediction: Prediction, armType: "left" | "right" | "both"): boolean {
+    const { keypoints } = prediction;
+    const leftWrist = keypoints[COCO_KEYPOINTS.left_wrist];
+    const rightWrist = keypoints[COCO_KEYPOINTS.right_wrist];
+    const nose = keypoints[COCO_KEYPOINTS.nose];
 
     if (armType === "both") {
-      const leftOverhead =
-        bodyPosition.leftWrist[1] < bodyPosition.nose[1] - 50;
-      const rightOverhead =
-        bodyPosition.rightWrist[1] < bodyPosition.nose[1] - 50;
-      overhead = leftOverhead && rightOverhead;
+      return leftWrist[1] < nose[1] - 50 && rightWrist[1] < nose[1] - 50;
+    }
+    
+    const wrist = armType === "left" ? leftWrist : rightWrist;
+    return wrist[1] < nose[1] - 50;
+  }
+
+  private handleReadyState(overhead: boolean, currentTime: number): boolean {
+    if (overhead) {
+      this.stateMachine.state = "overhead";
+      this.stateMachine.lastStateChange = currentTime;
+      this.stateMachine.repStartTime = currentTime;
+      this.stateMachine.overheadDetectedTime = currentTime;
+    }
+    return false;
+  }
+
+  private handleOverheadState(overhead: boolean, currentTime: number): boolean {
+    const holdTime = currentTime - this.stateMachine.overheadDetectedTime;
+
+    if (holdTime > ANALYSIS_CONFIG.OVERHEAD_HOLD_MS) {
+      this.stateMachine.state = "complete";
+      this.stateMachine.lastStateChange = currentTime;
+      this.stateMachine.belowHeadStartTime = 0;
+      return true;
+    } else if (!overhead) {
+      this.stateMachine.state = "ready";
+      this.stateMachine.lastStateChange = currentTime;
+    }
+    return false;
+  }
+
+  private handleCompleteState(overhead: boolean, currentTime: number): boolean {
+    if (!overhead) {
+      if (this.stateMachine.belowHeadStartTime === 0) {
+        this.stateMachine.belowHeadStartTime = currentTime;
+      }
+
+      const belowHeadTime = currentTime - this.stateMachine.belowHeadStartTime;
+      if (belowHeadTime > ANALYSIS_CONFIG.BELOW_HEAD_TIME_MS) {
+        this.stateMachine.state = "ready";
+        this.stateMachine.lastStateChange = currentTime;
+        this.stateMachine.belowHeadStartTime = 0;
+      }
     } else {
-      const wristKey = armType === "left" ? "leftWrist" : "rightWrist";
-      overhead = bodyPosition[wristKey][1] < bodyPosition.nose[1] - 50;
+      this.stateMachine.belowHeadStartTime = 0;
     }
-
-    switch (machine.state) {
-      case "ready":
-        if (overhead) {
-          machine.state = "overhead";
-          machine.lastStateChange = currentTime;
-          machine.repStartTime = currentTime;
-          machine.overheadDetectedTime = currentTime;
-        }
-        break;
-
-      case "overhead":
-        // Count rep after holding overhead position for at least 150ms
-        const holdTime = currentTime - machine.overheadDetectedTime;
-
-        if (holdTime > ANALYSIS_CONFIG.OVERHEAD_HOLD_MS) {
-          // Held long enough - rep complete!
-          machine.state = "complete";
-          machine.lastStateChange = currentTime;
-          machine.belowHeadStartTime = 0; // Reset for tracking
-          return true; // Rep counted immediately
-        } else if (!overhead) {
-          // Lost overhead position before completing hold - reset
-          machine.state = "ready";
-          machine.lastStateChange = currentTime;
-        }
-        break;
-
-      case "complete":
-        // Wait for arm to come down and stay below head before allowing next rep
-        if (!overhead) {
-          if (machine.belowHeadStartTime === 0) {
-            // Just came below head, start timing
-            machine.belowHeadStartTime = currentTime;
-          }
-
-          const belowHeadTime = currentTime - machine.belowHeadStartTime;
-
-          if (belowHeadTime > ANALYSIS_CONFIG.BELOW_HEAD_TIME_MS) {
-            // Stayed below head long enough, ready for next rep
-            machine.state = "ready";
-            machine.lastStateChange = currentTime;
-            machine.belowHeadStartTime = 0;
-          }
-        } else {
-          // Arm went back overhead, reset the below-head timer
-          machine.belowHeadStartTime = 0;
-        }
-        break;
-    }
-
     return false;
   }
 }
