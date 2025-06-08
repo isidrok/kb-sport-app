@@ -31,9 +31,6 @@ export class RenderingService {
     const width = props.width ?? target.width;
     const height = props.height ?? target.height;
 
-    // Set up canvas
-    target.width = width;
-    target.height = height;
     const ctx = target.getContext("2d")!;
     ctx.clearRect(0, 0, width, height);
 

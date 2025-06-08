@@ -5,7 +5,6 @@ import { RepCountingService, WorkoutSession } from "./rep-counting.service";
 import { PredictionAnalysisService } from "./prediction-analysis.service";
 import { StorageService } from "./storage.service";
 
-
 export class WorkoutOrchestratorService {
   private animationFrameId: number | null = null;
   private isWorkoutActive = false;
@@ -27,13 +26,20 @@ export class WorkoutOrchestratorService {
   async initialize(): Promise<void> {
     await Promise.all([
       this.services.prediction.initialize(),
-      this.services.storage.initialize()
+      this.services.storage.initialize(),
     ]);
   }
 
-  async prepareCamera(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<void> {
+  async prepareCamera(
+    video: HTMLVideoElement,
+    canvas: HTMLCanvasElement
+  ): Promise<void> {
     // Get canvas dimensions for camera setup
     const { width, height } = canvas.getBoundingClientRect();
+    video.width = width;
+    video.height = height;
+    canvas.width = width;
+    canvas.height = height;
     await this.services.camera.start(width, height, video);
     this.startProcessingLoop(video, canvas);
   }
@@ -68,7 +74,6 @@ export class WorkoutOrchestratorService {
     this.services.prediction.dispose();
   }
 
-
   private stopProcessing(): void {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
@@ -76,7 +81,10 @@ export class WorkoutOrchestratorService {
     }
   }
 
-  private startProcessingLoop(video: HTMLVideoElement, canvas: HTMLCanvasElement): void {
+  private startProcessingLoop(
+    video: HTMLVideoElement,
+    canvas: HTMLCanvasElement
+  ): void {
     const processFrame = () => {
       const { bestPrediction } = this.services.prediction.process(video);
 
@@ -106,11 +114,13 @@ export class WorkoutOrchestratorService {
     const repDetection = this.services.analysis.analyzeForRep(bestPrediction);
 
     if (repDetection.detected) {
-      this.services.repCounting.addRep(repDetection.armType, repDetection.timestamp);
+      this.services.repCounting.addRep(
+        repDetection.armType,
+        repDetection.timestamp
+      );
     }
 
     const session = this.services.repCounting.getCurrentSession();
     this.onChange(session ? { ...session } : null);
   }
-
 }

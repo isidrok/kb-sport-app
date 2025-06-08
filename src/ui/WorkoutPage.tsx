@@ -38,7 +38,13 @@ export function WorkoutPage() {
           <div className={styles.metricValue}>
             {currentSession?.estimatedRepsPerMinute || 0}
           </div>
-          <div className={styles.metricLabel}>RPM</div>
+          <div className={styles.metricLabel}>Current RPM</div>
+        </div>
+        <div className={styles.metric}>
+          <div className={styles.metricValue}>
+            {currentSession ? Math.round(currentSession.repsPerMinute) : 0}
+          </div>
+          <div className={styles.metricLabel}>Avg RPM</div>
         </div>
       </div>
       
