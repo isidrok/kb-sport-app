@@ -152,6 +152,7 @@ export class StorageService {
     return {
       countdownDuration: 3,
       sessionDuration: null,
+      autoStopOnTimeLimit: false,
       beepInterval: 5,
       beepUnit: 'reps',
       announcementInterval: 1,

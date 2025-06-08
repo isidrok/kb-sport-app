@@ -12,6 +12,7 @@ export class WorkoutOrchestratorService {
   private isWorkoutActive = false;
   private onChange: (session: WorkoutSession | null) => void;
   private onSessionEndCountdown?: (countdown: number | null) => void;
+  private onAutoStop?: () => void;
   private settings: WorkoutSettings;
 
   private readonly services = {
@@ -27,16 +28,18 @@ export class WorkoutOrchestratorService {
   constructor(
     settings: WorkoutSettings,
     onChange: (session: WorkoutSession | null) => void,
-    onSessionEndCountdown?: (countdown: number | null) => void
+    onSessionEndCountdown?: (countdown: number | null) => void,
+    onAutoStop?: () => void
   ) {
     this.settings = settings;
     this.onChange = onChange;
     this.onSessionEndCountdown = onSessionEndCountdown;
+    this.onAutoStop = onAutoStop;
   }
 
   async initialize(): Promise<void> {
     // Initialize audio feedback service
-    this.services.audioFeedback = new AudioFeedbackService(this.settings, this.onSessionEndCountdown);
+    this.services.audioFeedback = new AudioFeedbackService(this.settings, this.onSessionEndCountdown, this.onAutoStop);
     
     await Promise.all([
       this.services.prediction.initialize(),

@@ -11,10 +11,16 @@ export class AudioFeedbackService {
   private countdownTimeoutId: number | null = null;
   private timeBeepIntervalId: number | null = null;
   private onSessionEndCountdown?: (countdown: number | null) => void;
+  private onAutoStop?: () => void;
 
-  constructor(settings: WorkoutSettings, onSessionEndCountdown?: (countdown: number | null) => void) {
+  constructor(
+    settings: WorkoutSettings, 
+    onSessionEndCountdown?: (countdown: number | null) => void,
+    onAutoStop?: () => void
+  ) {
     this.settings = settings;
     this.onSessionEndCountdown = onSessionEndCountdown;
+    this.onAutoStop = onAutoStop;
   }
 
   async initialize(): Promise<void> {
@@ -203,8 +209,14 @@ export class AudioFeedbackService {
     if (this.onSessionEndCountdown) {
       this.onSessionEndCountdown(null);
     }
-    // Play final different beep for time limit reached
-    await this.audioService.playSessionEndFinalBeep();
+    
+    // Auto-stop if enabled
+    if (this.settings.autoStopOnTimeLimit && this.onAutoStop) {
+      this.onAutoStop();
+    } else {
+      // Play final different beep for time limit reached
+      await this.audioService.playSessionEndFinalBeep();
+    }
   }
 
   isAudioAvailable(): boolean {

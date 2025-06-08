@@ -4,6 +4,7 @@ import styles from "./WorkoutSettings.module.css";
 export interface WorkoutSettings {
   countdownDuration: number;
   sessionDuration: number | null; // null for unlimited
+  autoStopOnTimeLimit: boolean; // auto stop when session duration reached
   beepInterval: number; // beep every X units (0 = disabled)
   beepUnit: "reps" | "seconds"; // unit for beeps
   announcementInterval: number; // announce every X units (0 = disabled)
@@ -26,7 +27,7 @@ export function WorkoutSettingsMenu({
 
   const handleSettingChange = (
     key: keyof WorkoutSettings,
-    value: number | null
+    value: number | null | boolean
   ) => {
     onSettingsChange({
       ...settings,
@@ -139,6 +140,23 @@ export function WorkoutSettingsMenu({
                   max="180"
                   placeholder="0 for unlimited"
                 />
+              </div>
+
+              <div className={styles.settingGroup}>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={settings.autoStopOnTimeLimit}
+                    onChange={(e) =>
+                      handleSettingChange(
+                        "autoStopOnTimeLimit",
+                        e.currentTarget.checked
+                      )
+                    }
+                    disabled={disabled}
+                  />
+                  Auto-stop when session duration reached
+                </label>
               </div>
 
               <div className={styles.settingsSection}>

@@ -49,7 +49,14 @@ export function useWorkout() {
         workoutServiceRef.current = new WorkoutOrchestratorService(
           finalSettings,
           (session) => setCurrentSession(session),
-          (countdown) => setSessionEndCountdown(countdown)
+          (countdown) => setSessionEndCountdown(countdown),
+          () => {
+            // Auto-stop callback
+            if (workoutServiceRef.current) {
+              workoutServiceRef.current.stop();
+              setIsWorkoutActive(false);
+            }
+          }
         );
 
         // Initialize workout service
