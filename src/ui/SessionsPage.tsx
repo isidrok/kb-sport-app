@@ -118,7 +118,7 @@ export function SessionsPage() {
             <Line 
               type="monotone" 
               dataKey="reps" 
-              stroke="#8884d8" 
+              stroke="var(--primary-color)" 
               strokeWidth={2}
               dot={{ r: 3 }}
             />

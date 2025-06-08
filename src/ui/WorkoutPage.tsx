@@ -102,7 +102,9 @@ export function WorkoutPage() {
           {sessionEndCountdown !== null && (
             <div className={styles.countdownDisplay}>
               <p>Session ending!</p>
-              <div className={styles.countdownNumber}>{sessionEndCountdown}</div>
+              <div className={styles.countdownNumber}>
+                {sessionEndCountdown}
+              </div>
             </div>
           )}
         </div>
