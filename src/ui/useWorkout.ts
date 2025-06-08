@@ -45,11 +45,21 @@ export function useWorkout() {
     };
   }, []);
 
-  const startCountdown = () => {
-    let count = 3;
+  const startCountdown = (duration: number, onCountdownBeep?: () => void, onStart?: () => void) => {
+    let count = duration;
+    if (count === 0) {
+      // No countdown, start immediately
+      startWorkout();
+      return;
+    }
+
     setCountdown(count);
 
     countdownIntervalRef.current = window.setInterval(() => {
+      if (onCountdownBeep) {
+        onCountdownBeep();
+      }
+      
       count--;
       if (count > 0) {
         setCountdown(count);
@@ -59,19 +69,27 @@ export function useWorkout() {
           clearInterval(countdownIntervalRef.current);
           countdownIntervalRef.current = null;
         }
-        // Start the actual workout
+        
+        // Play start beep and start workout
+        if (onStart) {
+          onStart();
+        }
         startWorkout();
       }
     }, 1000);
   };
 
-  const startSession = async () => {
+  const startSession = async (countdownDuration?: number, onCountdownBeep?: () => void, onStart?: () => void) => {
     setError(null);
     try {
       // Prepare camera and start processing loop
       await workoutService.prepareCamera(videoRef.current!, canvasRef.current!);
       // Start countdown in UI
-      startCountdown();
+      if (countdownDuration !== undefined) {
+        startCountdown(countdownDuration, onCountdownBeep, onStart);
+      } else {
+        startWorkout();
+      }
     } catch (error) {
       console.error("Failed to start session:", error);
       setError("Failed to start workout session. Please try again.");

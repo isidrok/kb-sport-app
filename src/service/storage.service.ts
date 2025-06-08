@@ -1,5 +1,6 @@
 import { WorkoutSession, Rep } from "./rep-counting.service";
 import { RecordingService } from "./recording.service";
+import { WorkoutSettings } from "../ui/WorkoutSettings";
 
 const STORAGE_CONFIG = {
   FILE_NAMES: {
@@ -7,6 +8,7 @@ const STORAGE_CONFIG = {
     METADATA: "metadata.json",
   },
   PREFIX: "workout_",
+  SETTINGS_KEY: "workout_settings",
 } as const;
 
 export interface WorkoutMetadata {
@@ -125,6 +127,36 @@ export class StorageService {
       };
     }
     return { used: 0, quota: 0 };
+  }
+
+  // Settings persistence using localStorage
+  saveSettings(settings: WorkoutSettings): void {
+    try {
+      localStorage.setItem(STORAGE_CONFIG.SETTINGS_KEY, JSON.stringify(settings));
+    } catch (error) {
+      console.warn('Failed to save settings:', error);
+    }
+  }
+
+  loadSettings(): WorkoutSettings | null {
+    try {
+      const stored = localStorage.getItem(STORAGE_CONFIG.SETTINGS_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.warn('Failed to load settings:', error);
+      return null;
+    }
+  }
+
+  getDefaultSettings(): WorkoutSettings {
+    return {
+      countdownDuration: 3,
+      sessionDuration: null,
+      beepInterval: 0,
+      beepUnit: 'reps',
+      announcementInterval: 0,
+      announcementUnit: 'reps',
+    };
   }
 
   private isOPFSSupported(): boolean {

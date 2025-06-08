@@ -83,24 +83,30 @@
   z-index: 10;
 }
 
+.buttonRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
 .sessionButton {
-  padding: 0.5rem 1rem;
+  padding: 0.75rem;
   border: none;
-  border-radius: var(--radius);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
+  border-radius: 50%;
+  font-size: 1.5rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
   background-color: rgba(0, 0, 0, 0.8);
   color: white;
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  align-self: center;
-  max-width: 200px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sessionButton.start {
@@ -260,8 +266,10 @@
   .overlayMetrics {
     top: 0.5rem;
     left: 0.5rem;
-    right: 0.5rem;
+    right: auto;
     gap: 0.5rem;
+    flex-direction: column;
+    width: auto;
   }
   
   .metric {
@@ -284,9 +292,14 @@
   }
   
   .sessionButton {
-    padding: 0.5rem 1rem;
-    font-size: 0.7rem;
-    max-width: 180px;
+    width: 50px;
+    height: 50px;
+    padding: 0.6rem;
+    font-size: 1.2rem;
+  }
+  
+  .buttonRow {
+    gap: 0.75rem;
   }
   
   .calibrationStatus {
@@ -333,9 +346,14 @@
   }
   
   .sessionButton {
-    padding: 0.75rem 1.5rem;
-    font-size: 0.875rem;
-    max-width: 250px;
+    width: 70px;
+    height: 70px;
+    padding: 0.875rem;
+    font-size: 1.75rem;
+  }
+  
+  .buttonRow {
+    gap: 1.25rem;
   }
 }
 
