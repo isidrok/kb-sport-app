@@ -126,7 +126,6 @@ export function SessionsPage() {
 
       {sessions.length === 0 ? (
         <div className={styles.empty}>
-          <div className={styles.emptyIcon}>🏋️</div>
           <div className={styles.emptyTitle}>No sessions yet</div>
           <div className={styles.emptyText}>Start your first workout to see it here</div>
         </div>

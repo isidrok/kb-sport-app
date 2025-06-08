@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState } from "preact/hooks";
 import { WorkoutOrchestratorService } from "../service/workout-orchestrator.service";
 import { WorkoutSession } from "../service/rep-counting.service";
+import { WorkoutSettings } from "./WorkoutSettings";
+import { StorageService } from "../service/storage.service";
 
 export function useWorkout() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -9,23 +11,49 @@ export function useWorkout() {
   const [currentSession, setCurrentSession] = useState<WorkoutSession | null>(null);
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [sessionEndCountdown, setSessionEndCountdown] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(true);
+  const [settings, setSettings] = useState<WorkoutSettings | null>(null);
   
   const countdownIntervalRef = useRef<number | null>(null);
+  const workoutServiceRef = useRef<WorkoutOrchestratorService | null>(null);
+  const storageServiceRef = useRef<StorageService>();
 
-  const workoutServiceRef = useRef<WorkoutOrchestratorService>();
-
-  if (!workoutServiceRef.current) {
-    workoutServiceRef.current = new WorkoutOrchestratorService(setCurrentSession);
+  // Initialize storage service
+  if (!storageServiceRef.current) {
+    storageServiceRef.current = new StorageService();
   }
 
-  const workoutService = workoutServiceRef.current;
+  const storageService = storageServiceRef.current;
 
   useEffect(() => {
     const initialize = async () => {
       try {
-        await workoutService.initialize();
+        // Initialize storage and load settings
+        await storageService.initialize();
+        const savedSettings = storageService.loadSettings();
+        const defaultSettings = storageService.getDefaultSettings();
+        
+        // Merge saved settings with defaults to ensure all fields are present
+        const finalSettings = savedSettings ? {
+          ...defaultSettings,
+          ...savedSettings
+        } : defaultSettings;
+        
+        // Settings loaded and merged with defaults
+        
+        setSettings(finalSettings);
+
+        // Create workout service with settings
+        workoutServiceRef.current = new WorkoutOrchestratorService(
+          finalSettings,
+          (session) => setCurrentSession(session),
+          (countdown) => setSessionEndCountdown(countdown)
+        );
+
+        // Initialize workout service
+        await workoutServiceRef.current.initialize();
         setIsModelLoading(false);
       } catch (error) {
         console.error("Failed to initialize workout service:", error);
@@ -41,11 +69,15 @@ export function useWorkout() {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
       }
-      workoutService.dispose();
+      if (workoutServiceRef.current) {
+        workoutServiceRef.current.dispose();
+      }
     };
   }, []);
 
-  const startCountdown = (duration: number, onCountdownBeep?: () => void, onStart?: () => void) => {
+  const startCountdown = (duration: number) => {
+    if (!workoutServiceRef.current) return;
+    
     let count = duration;
     if (count === 0) {
       // No countdown, start immediately
@@ -54,15 +86,20 @@ export function useWorkout() {
     }
 
     setCountdown(count);
+    
+    // Play initial countdown beep for the first number
+    if (workoutServiceRef.current) {
+      workoutServiceRef.current.playCountdownBeep();
+    }
 
-    countdownIntervalRef.current = window.setInterval(() => {
-      if (onCountdownBeep) {
-        onCountdownBeep();
-      }
-      
+    countdownIntervalRef.current = window.setInterval(async () => {
       count--;
       if (count > 0) {
         setCountdown(count);
+        // Play countdown beep for each remaining number
+        if (workoutServiceRef.current) {
+          await workoutServiceRef.current.playCountdownBeep();
+        }
       } else {
         setCountdown(null);
         if (countdownIntervalRef.current) {
@@ -71,25 +108,27 @@ export function useWorkout() {
         }
         
         // Play start beep and start workout
-        if (onStart) {
-          onStart();
+        if (workoutServiceRef.current) {
+          await workoutServiceRef.current.playStartBeep();
         }
         startWorkout();
       }
     }, 1000);
   };
 
-  const startSession = async (countdownDuration?: number, onCountdownBeep?: () => void, onStart?: () => void) => {
+  const startSession = async () => {
+    if (!workoutServiceRef.current || !settings) return;
+    
+    // Clear previous session data when starting new workout
+    setCurrentSession(null);
     setError(null);
+    
     try {
       // Prepare camera and start processing loop
-      await workoutService.prepareCamera(videoRef.current!, canvasRef.current!);
-      // Start countdown in UI
-      if (countdownDuration !== undefined) {
-        startCountdown(countdownDuration, onCountdownBeep, onStart);
-      } else {
-        startWorkout();
-      }
+      await workoutServiceRef.current.prepareCamera(videoRef.current!, canvasRef.current!);
+      // Start countdown based on settings
+      const countdownDuration = settings.countdownDuration || 0;
+      startCountdown(countdownDuration);
     } catch (error) {
       console.error("Failed to start session:", error);
       setError("Failed to start workout session. Please try again.");
@@ -97,8 +136,10 @@ export function useWorkout() {
   };
 
   const startWorkout = async () => {
+    if (!workoutServiceRef.current) return;
+    
     try {
-      await workoutService.startWorkout(videoRef.current!);
+      await workoutServiceRef.current.startWorkout(videoRef.current!);
       setIsWorkoutActive(true);
     } catch (error) {
       console.error("Failed to start workout:", error);
@@ -115,12 +156,25 @@ export function useWorkout() {
       setCountdown(null);
     }
     
+    if (!workoutServiceRef.current) return;
+    
     try {
-      await workoutService.stop();
+      await workoutServiceRef.current.stop();
       setIsWorkoutActive(false);
+      // Keep session data visible for user to see results
     } catch (error) {
       console.error("Failed to stop session:", error);
       setError("Failed to stop workout session.");
+    }
+  };
+
+  const updateSettings = (newSettings: WorkoutSettings) => {
+    setSettings(newSettings);
+    storageService.saveSettings(newSettings);
+    
+    // Update workout service if it exists
+    if (workoutServiceRef.current) {
+      workoutServiceRef.current.updateSettings(newSettings);
     }
   };
 
@@ -130,9 +184,16 @@ export function useWorkout() {
     isSessionActive: isWorkoutActive,
     currentSession,
     countdown,
+    sessionEndCountdown,
     error,
     isModelLoading,
+    settings,
+    isSettingsLoaded: settings !== null,
     startSession,
     stopSession,
+    updateSettings,
+    // Audio feedback status methods
+    isAudioAvailable: () => workoutServiceRef.current?.isAudioAvailable() ?? false,
+    isSpeechAvailable: () => workoutServiceRef.current?.isSpeechAvailable() ?? false,
   };
 }

@@ -4,11 +4,15 @@ import { RenderingService } from "./rendering.service";
 import { RepCountingService, WorkoutSession } from "./rep-counting.service";
 import { PredictionAnalysisService } from "./prediction-analysis.service";
 import { StorageService } from "./storage.service";
+import { AudioFeedbackService } from "./audio-feedback.service";
+import { WorkoutSettings } from "../ui/WorkoutSettings";
 
 export class WorkoutOrchestratorService {
   private animationFrameId: number | null = null;
   private isWorkoutActive = false;
   private onChange: (session: WorkoutSession | null) => void;
+  private onSessionEndCountdown?: (countdown: number | null) => void;
+  private settings: WorkoutSettings;
 
   private readonly services = {
     camera: new CameraService(),
@@ -17,16 +21,27 @@ export class WorkoutOrchestratorService {
     analysis: new PredictionAnalysisService(),
     repCounting: new RepCountingService(),
     storage: new StorageService(),
+    audioFeedback: null as AudioFeedbackService | null,
   };
 
-  constructor(onChange: (session: WorkoutSession | null) => void) {
+  constructor(
+    settings: WorkoutSettings,
+    onChange: (session: WorkoutSession | null) => void,
+    onSessionEndCountdown?: (countdown: number | null) => void
+  ) {
+    this.settings = settings;
     this.onChange = onChange;
+    this.onSessionEndCountdown = onSessionEndCountdown;
   }
 
   async initialize(): Promise<void> {
+    // Initialize audio feedback service
+    this.services.audioFeedback = new AudioFeedbackService(this.settings, this.onSessionEndCountdown);
+    
     await Promise.all([
       this.services.prediction.initialize(),
       this.services.storage.initialize(),
+      this.services.audioFeedback.initialize(),
     ]);
   }
 
@@ -48,30 +63,85 @@ export class WorkoutOrchestratorService {
     // Setup analysis
     this.services.analysis.resetState();
 
-    // Start session and recording
+    // Start session NOW (not during countdown)
     this.services.repCounting.start();
+    
     const stream = video.srcObject as MediaStream;
     await this.services.storage.startRecording(stream);
+
+    // Start audio feedback session
+    const session = this.services.repCounting.getCurrentSession();
+    if (this.services.audioFeedback && session) {
+      this.services.audioFeedback.startSession(session);
+    }
 
     this.isWorkoutActive = true;
   }
 
-  async stop(): Promise<void> {
+  async stop(): Promise<WorkoutSession | null> {
     this.stopProcessing();
     this.isWorkoutActive = false;
 
     const session = this.services.repCounting.stop();
+    
     if (session) {
       await this.services.storage.stopRecording(session);
-      this.onChange({ ...session });
+      
+      // End audio feedback session (manual stop)
+      if (this.services.audioFeedback) {
+        await this.services.audioFeedback.endSession(session, true);
+      }
+    } else if (this.services.audioFeedback) {
+      // Stop audio feedback even if no session
+      this.services.audioFeedback.stopSession();
     }
 
     this.services.camera.stop();
+    return session;
+  }
+
+  getCurrentSession(): WorkoutSession | null {
+    return this.services.repCounting.getCurrentSession();
+  }
+
+  updateSettings(settings: WorkoutSettings): void {
+    this.settings = settings;
+    if (this.services.audioFeedback) {
+      this.services.audioFeedback.updateSettings(settings);
+    }
+  }
+
+  getSettings(): WorkoutSettings {
+    return this.settings;
+  }
+
+  // Audio feedback methods
+  async playCountdownBeep(): Promise<void> {
+    if (this.services.audioFeedback) {
+      await this.services.audioFeedback.playCountdownBeep();
+    }
+  }
+
+  async playStartBeep(): Promise<void> {
+    if (this.services.audioFeedback) {
+      await this.services.audioFeedback.playStartBeep();
+    }
+  }
+
+  isAudioAvailable(): boolean {
+    return this.services.audioFeedback?.isAudioAvailable() ?? false;
+  }
+
+  isSpeechAvailable(): boolean {
+    return this.services.audioFeedback?.isSpeechAvailable() ?? false;
   }
 
   dispose(): void {
     this.stop();
     this.services.prediction.dispose();
+    if (this.services.audioFeedback) {
+      this.services.audioFeedback.dispose();
+    }
   }
 
   private stopProcessing(): void {
@@ -121,6 +191,15 @@ export class WorkoutOrchestratorService {
     }
 
     const session = this.services.repCounting.getCurrentSession();
-    this.onChange(session ? { ...session } : null);
+    if (session) {
+      // Handle audio feedback for session updates
+      if (this.services.audioFeedback) {
+        this.services.audioFeedback.handleSessionUpdate(session);
+      }
+      
+      this.onChange({ ...session });
+    } else {
+      this.onChange(null);
+    }
   }
 }

@@ -8,10 +8,13 @@ export class AudioFeedbackService {
   private lastBeepValue: number = 0;
   private lastAnnouncementValue: number = 0;
   private sessionTimeoutId: number | null = null;
+  private countdownTimeoutId: number | null = null;
   private timeBeepIntervalId: number | null = null;
+  private onSessionEndCountdown?: (countdown: number | null) => void;
 
-  constructor(settings: WorkoutSettings) {
+  constructor(settings: WorkoutSettings, onSessionEndCountdown?: (countdown: number | null) => void) {
     this.settings = settings;
+    this.onSessionEndCountdown = onSessionEndCountdown;
   }
 
   async initialize(): Promise<void> {
@@ -38,9 +41,25 @@ export class AudioFeedbackService {
 
     // Set up session duration timeout if specified
     if (this.settings.sessionDuration) {
+      // Calculate remaining time from session start
+      const currentTime = Date.now();
+      const elapsedTime = currentTime - session.startTime;
+      const remainingTime = Math.max(0, (this.settings.sessionDuration * 1000) - elapsedTime);
+      
+      // Set up countdown warning 3 seconds before end
+      if (remainingTime > 3000) {
+        this.countdownTimeoutId = window.setTimeout(() => {
+          this.startSessionEndCountdown();
+        }, remainingTime - 3000);
+      } else if (remainingTime > 0) {
+        // Less than 3 seconds left, start countdown immediately
+        this.startSessionEndCountdown();
+      }
+      
+      // Set up final timeout
       this.sessionTimeoutId = window.setTimeout(() => {
         this.announceSessionTimeLimit();
-      }, this.settings.sessionDuration * 1000);
+      }, remainingTime);
     }
 
     // Set up time-based beep interval if using seconds
@@ -59,12 +78,25 @@ export class AudioFeedbackService {
   async handleSessionUpdate(session: WorkoutSession): Promise<void> {
     const currentTime = Date.now();
 
+    // Debug logging
+    console.log("Audio feedback session update:", {
+      totalReps: session.totalReps,
+      beepInterval: this.settings.beepInterval,
+      beepUnit: this.settings.beepUnit,
+      announcementInterval: this.settings.announcementInterval,
+      announcementUnit: this.settings.announcementUnit,
+      lastBeepValue: this.lastBeepValue,
+      lastAnnouncementValue: this.lastAnnouncementValue
+    });
+
     // Handle beeps based on unit type
     if (this.settings.beepInterval > 0) {
       if (this.settings.beepUnit === "reps") {
         // Rep-based beeps
         const repsSinceLastBeep = session.totalReps - this.lastBeepValue;
+        console.log("Rep beep check:", { repsSinceLastBeep, beepInterval: this.settings.beepInterval });
         if (repsSinceLastBeep >= this.settings.beepInterval) {
+          console.log("Playing milestone beep!");
           await this.audioService.playMilestoneBeep();
           this.lastBeepValue = session.totalReps;
         }
@@ -78,8 +110,10 @@ export class AudioFeedbackService {
         // Rep-based announcements
         const repsSinceLastAnnouncement =
           session.totalReps - this.lastAnnouncementValue;
+        console.log("Rep announcement check:", { repsSinceLastAnnouncement, announcementInterval: this.settings.announcementInterval });
         if (repsSinceLastAnnouncement >= this.settings.announcementInterval) {
-          await this.audioService.announceReps(session.totalReps);
+          console.log("Playing rep announcement!");
+          await this.audioService.announceProgress(session.totalReps, session.repsPerMinute);
           this.lastAnnouncementValue = session.totalReps;
         }
       } else {
@@ -88,26 +122,36 @@ export class AudioFeedbackService {
           currentTime - this.lastAnnouncementValue;
         const intervalMs = this.settings.announcementInterval * 60 * 1000;
 
+        console.log("Time announcement check:", { 
+          timeSinceLastAnnouncement, 
+          intervalMs, 
+          repsPerMinute: session.repsPerMinute 
+        });
+
         if (
           timeSinceLastAnnouncement >= intervalMs &&
           session.repsPerMinute > 0
         ) {
-          await this.audioService.announcePace(session.repsPerMinute);
+          console.log("Playing pace announcement!");
+          await this.audioService.announceProgress(session.totalReps, session.repsPerMinute);
           this.lastAnnouncementValue = currentTime;
         }
       }
     }
   }
 
-  async endSession(session: WorkoutSession): Promise<void> {
+  async endSession(_session: WorkoutSession, isManualStop: boolean = false): Promise<void> {
     // Clear all intervals and timeouts
     this.clearTimers();
 
-    // Announce session summary
-    await this.audioService.announceSessionEnd(
-      session.totalReps,
-      session.repsPerMinute
-    );
+    // Play appropriate beep based on how session ended
+    if (isManualStop) {
+      // Manual stop: just the final long beep
+      await this.audioService.playSessionEndFinalBeep();
+    } else {
+      // Natural end (time limit): full sequence
+      await this.audioService.playSessionEndBeeps();
+    }
   }
 
   stopSession(): void {
@@ -121,14 +165,46 @@ export class AudioFeedbackService {
       this.sessionTimeoutId = null;
     }
 
+    if (this.countdownTimeoutId) {
+      clearTimeout(this.countdownTimeoutId);
+      this.countdownTimeoutId = null;
+    }
+
     if (this.timeBeepIntervalId) {
       clearInterval(this.timeBeepIntervalId);
       this.timeBeepIntervalId = null;
     }
   }
 
+  private startSessionEndCountdown(): void {
+    if (!this.onSessionEndCountdown) return;
+    
+    let count = 3;
+    this.onSessionEndCountdown(count);
+    
+    // Play first countdown beep
+    this.audioService.playCountdownBeep();
+    
+    const countdownInterval = setInterval(async () => {
+      count--;
+      if (count > 0) {
+        this.onSessionEndCountdown!(count);
+        await this.audioService.playCountdownBeep();
+      } else {
+        this.onSessionEndCountdown!(null);
+        clearInterval(countdownInterval);
+        // Final beep is handled by announceSessionTimeLimit
+      }
+    }, 1000);
+  }
+
   private async announceSessionTimeLimit(): Promise<void> {
-    await this.audioService.speak("Time limit reached", 1.2, 1, 0.8);
+    // Clear countdown UI
+    if (this.onSessionEndCountdown) {
+      this.onSessionEndCountdown(null);
+    }
+    // Play final different beep for time limit reached
+    await this.audioService.playSessionEndFinalBeep();
   }
 
   isAudioAvailable(): boolean {

@@ -152,10 +152,10 @@ export class StorageService {
     return {
       countdownDuration: 3,
       sessionDuration: null,
-      beepInterval: 0,
+      beepInterval: 5,
       beepUnit: 'reps',
-      announcementInterval: 0,
-      announcementUnit: 'reps',
+      announcementInterval: 1,
+      announcementUnit: 'minutes',
     };
   }
 
