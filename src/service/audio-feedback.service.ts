@@ -25,21 +25,28 @@ export class AudioFeedbackService {
     this.settings = settings;
   }
 
-  // Pure audio operations
-  async playCountdownBeep(): Promise<void> {
-    await this.audioService.playCountdownBeep();
+  // Application layer methods - define what sounds to play
+  async playCountdownSound(): Promise<void> {
+    // Countdown: high-pitched, short beep
+    await this.audioService.playBeep(1000, 150, 0.4);
   }
 
-  async playStartBeep(): Promise<void> {
-    await this.audioService.playStartBeep();
+  async playWorkoutStartSound(): Promise<void> {
+    // Workout start: lower-pitched, longer beep
+    await this.audioService.playBeep(600, 300, 0.5);
   }
 
-  async playSessionEndBeeps(): Promise<void> {
-    await this.audioService.playSessionEndBeeps();
+  async playSessionEndSequence(): Promise<void> {
+    // Session end: 3 countdown beeps + final tone
+    await this.audioService.playBeep(1000, 150, 0.4);
+    setTimeout(() => this.audioService.playBeep(1000, 150, 0.4), 1000);
+    setTimeout(() => this.audioService.playBeep(1000, 150, 0.4), 2000);
+    setTimeout(() => this.audioService.playBeep(600, 400, 0.6), 3000);
   }
 
-  async playSessionEndFinalBeep(): Promise<void> {
-    await this.audioService.playSessionEndFinalBeep();
+  async playManualStopSound(): Promise<void> {
+    // Manual stop: just final long beep
+    await this.audioService.playBeep(600, 400, 0.6);
   }
 
   startSession(session: WorkoutSession): void {
@@ -54,7 +61,8 @@ export class AudioFeedbackService {
       this.settings.beepUnit === "seconds"
     ) {
       this.timeBeepIntervalId = window.setInterval(() => {
-        this.audioService.playBeep();
+        // Time-based milestone: standard beep
+        this.audioService.playBeep(800, 200, 0.6);
       }, this.settings.beepInterval * 1000);
     }
   }
@@ -68,7 +76,9 @@ export class AudioFeedbackService {
         // Rep-based beeps
         const repsSinceLastBeep = session.totalReps - this.lastBeepValue;
         if (repsSinceLastBeep >= this.settings.beepInterval) {
-          await this.audioService.playMilestoneBeep();
+          // Rep milestone: double beep pattern
+          await this.audioService.playBeep(800, 150, 0.5);
+          setTimeout(() => this.audioService.playBeep(800, 150, 0.5), 200);
           this.lastBeepValue = session.totalReps;
         }
       }
@@ -82,7 +92,9 @@ export class AudioFeedbackService {
         const repsSinceLastAnnouncement =
           session.totalReps - this.lastAnnouncementValue;
         if (repsSinceLastAnnouncement >= this.settings.announcementInterval) {
-          await this.audioService.announceProgress(session.totalReps, session.repsPerMinute);
+          // Rep-based announcement: compose message and speak
+          const message = this.composeProgressMessage(session.totalReps, session.repsPerMinute);
+          await this.audioService.speak(message, 1.1, 1, 0.7);
           this.lastAnnouncementValue = session.totalReps;
         }
       } else {
@@ -95,7 +107,9 @@ export class AudioFeedbackService {
           timeSinceLastAnnouncement >= intervalMs &&
           session.repsPerMinute > 0
         ) {
-          await this.audioService.announceProgress(session.totalReps, session.repsPerMinute);
+          // Time-based announcement: compose message and speak
+          const message = this.composeProgressMessage(session.totalReps, session.repsPerMinute);
+          await this.audioService.speak(message, 1.1, 1, 0.7);
           this.lastAnnouncementValue = currentTime;
         }
       }
@@ -106,13 +120,13 @@ export class AudioFeedbackService {
     // Clear all intervals
     this.clearTimers();
 
-    // Play appropriate beep based on how session ended
+    // Play appropriate sound based on how session ended
     if (isManualStop) {
       // Manual stop: just the final long beep
-      await this.audioService.playSessionEndFinalBeep();
+      await this.playManualStopSound();
     } else {
       // Natural end (time limit): full sequence
-      await this.audioService.playSessionEndBeeps();
+      await this.playSessionEndSequence();
     }
   }
 
@@ -125,6 +139,16 @@ export class AudioFeedbackService {
     if (this.timeBeepIntervalId) {
       clearInterval(this.timeBeepIntervalId);
       this.timeBeepIntervalId = null;
+    }
+  }
+
+  private composeProgressMessage(totalReps: number, repsPerMinute: number): string {
+    const roundedRPM = Math.round(repsPerMinute);
+    
+    if (totalReps === 1) {
+      return `1 rep at ${roundedRPM} RPM`;
+    } else {
+      return `${totalReps} reps at ${roundedRPM} RPM`;
     }
   }
 

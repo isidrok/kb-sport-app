@@ -79,28 +79,6 @@ export class AudioService {
     }
   }
 
-  /**
-   * Play a countdown beep (higher pitch)
-   */
-  async playCountdownBeep(): Promise<void> {
-    await this.playBeep(1000, 150, 0.4);
-  }
-
-  /**
-   * Play a start beep (different tone)
-   */
-  async playStartBeep(): Promise<void> {
-    await this.playBeep(600, 300, 0.5);
-  }
-
-  /**
-   * Play a milestone beep (double beep pattern)
-   */
-  async playMilestoneBeep(): Promise<void> {
-    // Play two quick beeps: bip bip
-    await this.playBeep(800, 150, 0.5);
-    setTimeout(() => this.playBeep(800, 150, 0.5), 200);
-  }
 
   /**
    * Speak text using text-to-speech
@@ -154,77 +132,7 @@ export class AudioService {
     }
   }
 
-  /**
-   * Announce current repetition count
-   */
-  async announceReps(count: number): Promise<void> {
-    let message: string;
-    if (count === 1) {
-      message = "1 rep";
-    } else if (count < 100) {
-      message = `${count} reps`;
-    } else {
-      // For large numbers, make it more natural
-      message = `${count} repetitions`;
-    }
 
-    await this.speak(message, 1.1, 1, 0.7);
-  }
-
-  /**
-   * Announce current pace (reps per minute)
-   */
-  async announcePace(repsPerMinute: number): Promise<void> {
-    const rounded = Math.round(repsPerMinute);
-    let message: string;
-
-    if (rounded === 0) {
-      message = "No pace data yet";
-    } else if (rounded === 1) {
-      message = "1 rep per minute";
-    } else {
-      message = `${rounded} reps per minute`;
-    }
-
-    await this.speak(message, 1.1, 1, 0.7);
-  }
-
-  /**
-   * Announce progress with both reps and RPM
-   */
-  async announceProgress(totalReps: number, repsPerMinute: number): Promise<void> {
-    const roundedRPM = Math.round(repsPerMinute);
-    let message: string;
-
-    if (totalReps === 1) {
-      message = `1 rep at ${roundedRPM} RPM`;
-    } else {
-      message = `${totalReps} reps at ${roundedRPM} RPM`;
-    }
-
-    await this.speak(message, 1.1, 1, 0.7);
-  }
-
-  /**
-   * Play session end beep sequence (3 beeps + final tone)
-   */
-  async playSessionEndBeeps(): Promise<void> {
-    // Play 3 countdown-style beeps over 3 seconds
-    await this.playBeep(1000, 150, 0.4);
-    setTimeout(() => this.playBeep(1000, 150, 0.4), 1000);
-    setTimeout(() => this.playBeep(1000, 150, 0.4), 2000);
-    
-    // Final different tone after 3 seconds
-    setTimeout(() => this.playBeep(600, 400, 0.6), 3000);
-  }
-
-  /**
-   * Play only the final session end beep (for manual stop)
-   */
-  async playSessionEndFinalBeep(): Promise<void> {
-    // Just the final long beep
-    await this.playBeep(600, 400, 0.6);
-  }
 
   /**
    * Stop any ongoing speech

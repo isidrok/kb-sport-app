@@ -207,9 +207,8 @@ export const useServicesStore = create<ServicesState>((set, get) => ({
       throw new Error("Services not initialized");
     }
 
-    // Generate workout ID and create video writer
-    const workoutId = storageService.generateWorkoutId();
-    const videoWriter = await storageService.createVideoWriter(workoutId);
+    // Create workout session with ID and video writer
+    const { workoutId, videoWriter } = await storageService.createWorkoutSession();
 
     // Setup analysis and start session
     analysisService.resetState();
@@ -302,14 +301,14 @@ export const useServicesStore = create<ServicesState>((set, get) => ({
   playCountdownBeep: async () => {
     const { audioFeedbackService } = get();
     if (audioFeedbackService) {
-      await audioFeedbackService.playCountdownBeep();
+      await audioFeedbackService.playCountdownSound();
     }
   },
 
   playStartBeep: async () => {
     const { audioFeedbackService } = get();
     if (audioFeedbackService) {
-      await audioFeedbackService.playStartBeep();
+      await audioFeedbackService.playWorkoutStartSound();
     }
   },
 
@@ -424,7 +423,7 @@ export const useServicesStore = create<ServicesState>((set, get) => ({
     
     // Play first countdown beep
     if (audioFeedbackService) {
-      await audioFeedbackService.playCountdownBeep();
+      await audioFeedbackService.playCountdownSound();
     }
     
     const countdownInterval = setInterval(async () => {
@@ -432,7 +431,7 @@ export const useServicesStore = create<ServicesState>((set, get) => ({
       if (count > 0) {
         useWorkoutStore.getState().setSessionEndCountdown(count);
         if (audioFeedbackService) {
-          await audioFeedbackService.playCountdownBeep();
+          await audioFeedbackService.playCountdownSound();
         }
       } else {
         useWorkoutStore.getState().setSessionEndCountdown(null);
@@ -454,7 +453,7 @@ export const useServicesStore = create<ServicesState>((set, get) => ({
     } else {
       // Just play final beep for time limit reached
       if (audioFeedbackService) {
-        await audioFeedbackService.playSessionEndFinalBeep();
+        await audioFeedbackService.playManualStopSound();
       }
     }
   },

@@ -32,14 +32,13 @@ export class StorageService {
   }
 
   /**
-   * Creates a video file writer for the given workout ID
-   * Used by external recording coordination
+   * Creates a new workout session with video writer
+   * Returns both the workout ID and video writer
    */
-  async createVideoWriter(
-    workoutId: string
-  ): Promise<FileSystemWritableFileStream> {
+  async createWorkoutSession(): Promise<{ workoutId: string; videoWriter: FileSystemWritableFileStream }> {
     this.ensureInitialized();
 
+    const workoutId = this.generateWorkoutId();
     const workoutDir = await this.opfsRoot!.getDirectoryHandle(workoutId, {
       create: true,
     });
@@ -47,7 +46,9 @@ export class StorageService {
       STORAGE_CONFIG.FILE_NAMES.VIDEO,
       { create: true }
     );
-    return await videoFile.createWritable();
+    const videoWriter = await videoFile.createWritable();
+    
+    return { workoutId, videoWriter };
   }
 
   /**
@@ -121,7 +122,7 @@ export class StorageService {
   }
 
 
-  generateWorkoutId(): string {
+  private generateWorkoutId(): string {
     return `${STORAGE_CONFIG.PREFIX}${new Date().toISOString()}`;
   }
 
