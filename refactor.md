@@ -11,25 +11,29 @@ This document outlines a comprehensive refactoring strategy to transform the ket
 **Implementation Date:** January 2025
 
 **What was accomplished:**
+
 1. **Feature-based directory structure created:**
+
    ```
    src/features/workout/components/    - workout-page.tsx, workout-settings.tsx
    src/features/workout/hooks/         - use-workout.ts
    src/features/workout/constants/     - workout-limits.ts
    src/features/sessions/components/   - sessions-page.tsx
    src/shared/components/ui/           - navigation.tsx
-   src/shared/constants/               - storage-config.ts  
+   src/shared/constants/               - storage-config.ts
    src/shared/types/                   - workout-types.ts
    src/shared/utils/                   - formatting-utils.ts
    ```
 
 2. **Successfully extracted and centralized:**
+
    - WorkoutSettings interface moved to `src/shared/types/workout-types.ts`
    - Storage configuration constants moved to `src/shared/constants/storage-config.ts`
    - Time/date formatting utilities moved to `src/shared/utils/formatting-utils.ts`
    - Workout limits constants moved to `src/features/workout/constants/workout-limits.ts`
 
 3. **Updated all import paths across codebase:**
+
    - Updated app.tsx to use new feature paths
    - Updated all service files to use shared types
    - Updated component imports for new structure
@@ -37,12 +41,14 @@ This document outlines a comprehensive refactoring strategy to transform the ket
 4. **Removed old UI directory** and verified build/functionality still works
 
 **Current codebase state:**
+
 - ✅ Application builds successfully
-- ✅ All existing functionality preserved  
+- ✅ All existing functionality preserved
 - ✅ Clean feature-based organization implemented
 - ✅ No breaking changes to user experience
 
 **Current file structure after Phase 1:**
+
 ```
 src/
 ├── features/
@@ -85,6 +91,7 @@ src/
 **Implementation Date:** January 2025
 
 **What was accomplished:**
+
 1. **Installed Zustand:** Added `zustand@5.0.5` for centralized state management
 2. **Created centralized store:** `src/shared/store/workout-store.ts` with separated business and UI state
 3. **Refactored orchestrator service:** Updated to use store callbacks instead of component props
@@ -95,6 +102,7 @@ src/
 5. **Updated WorkoutPage:** Now uses Zustand store through clean hook interface
 
 **Key improvements:**
+
 - Eliminated 206-line monolithic useWorkout hook
 - Replaced callback-based service communication with reactive store updates
 - Centralized all workout state management
@@ -102,10 +110,198 @@ src/
 - Maintained all existing functionality while improving code organization
 
 **Current codebase state:**
+
 - ✅ Application builds successfully with Zustand integration
 - ✅ All existing functionality preserved with centralized state
 - ✅ No infinite loops or performance issues
 - ✅ Clean separation between business logic and UI state
+
+### ✅ COMPLETED: Phase 2.5 - Service-Hook Architecture Review
+
+**Implementation Date:** January 2025
+
+**What was accomplished:**
+
+1. **Created SettingsService** - Extracted settings logic from StorageService for proper separation of concerns
+2. **Refactored AudioFeedbackService** - Removed countdown and auto-stop logic, now purely audio operations
+3. **Moved Auto-Stop Logic to Services Store** - Session duration management and auto-stop now handled in coordination layer
+4. **Consolidated Hooks** - Removed redundant `use-workout-orchestrator` and `use-services` hooks
+5. **Fixed Countdown Logic** - Single countdown system in UI layer, audio service responds to calls
+6. **Direct Store Access** - Components access services directly from store instead of through hook abstractions
+7. **Removed WorkoutOrchestratorService** - Completely eliminated, replaced with store-based coordination
+
+**Key improvements:**
+
+- Pure service architecture with clear responsibilities
+- No duplicate countdown/timer logic
+- Proper separation: settings ≠ file storage, audio ≠ business logic
+- Direct store access pattern eliminates unnecessary abstractions
+- Auto-stop functionality properly placed in coordination layer
+- All existing functionality preserved with cleaner architecture
+
+**Current codebase state:**
+
+- ✅ Application builds successfully with pure services architecture
+- ✅ All existing functionality preserved (camera, recording, audio, sessions)
+- ✅ No duplicate service instances or countdown logic
+- ✅ Clean separation of concerns between services and coordination
+- ✅ Services are pure utilities, coordination in store layer
+
+**Architecture Achievements:**
+
+The service-hook architecture has been completely refactored with these major improvements:
+
+1. **Pure Services**: All services are now focused utilities with single responsibilities
+2. **Store-Based Coordination**: Business logic coordination moved from orchestrator to store
+3. **Eliminated Redundancies**: Single service instances shared across entire application
+4. **Clean Separation**: UI concerns in UI layer, business logic in store, pure operations in services
+5. **Direct Access Pattern**: No unnecessary hook abstractions, direct store access
+
+### 🔄 NEXT: Phase 3 - Component Decomposition by Feature
+
+**Ready to implement:** Break down monolithic components into focused, reusable pieces
+
+## Current Issues Analysis
+
+### Component Architecture
+
+**Implementation Steps:**
+
+1. **Create Services Store** (`src/shared/store/services-store.ts`)
+
+   - Centralize service initialization and lifecycle
+   - Manage service instances as global state
+   - Handle service initialization errors
+
+2. **Create Service Access Hook** (`src/shared/hooks/use-services.ts`)
+
+   - Provide simple interface to access services
+   - Handle initialization lifecycle
+   - Manage cleanup on unmount
+
+3. **Refactor Existing Hooks:**
+
+   - `useWorkoutOrchestrator` - Use services store instead of creating instances
+   - `useSessionsData` - Access StorageService from store
+   - `useSessionActions` - Reuse existing StorageService instance
+
+4. **Update Workout Store Integration:**
+   - Services store communicates directly with workout store
+   - Remove callback parameters from service constructors
+   - Use direct store method calls for updates
+
+**Benefits:**
+
+1. **Eliminate Redundancy:**
+
+   - Single StorageService instance shared across app
+   - Single OrchestratorService instance managed centrally
+   - No duplicate service initializations
+
+2. **Simplified Hook Logic:**
+
+   - Hooks focus on business logic, not service management
+   - Consistent service access pattern across features
+   - Easier testing with centralized service mocking
+
+3. **Better Performance:**
+
+   - Reduced memory usage from fewer service instances
+   - Faster initialization by avoiding redundant setups
+   - More predictable service lifecycle
+
+4. **Improved Maintainability:**
+   - Single source of truth for service configuration
+   - Easier to add new services or modify existing ones
+   - Clear separation between service layer and UI layer
+
+**Migration Strategy:**
+
+1. **Phase 2.5a**: Create services store alongside existing hooks
+2. **Phase 2.5b**: Update hooks to use services store, test individually
+3. **Phase 2.5c**: Remove old service creation logic
+4. **Phase 2.5d**: Verify all functionality works with centralized services
+
+**Risk Level:** Medium
+**Dependencies:** None (builds on existing Zustand store)
+
+**Testing Focus:**
+
+- Ensure services initialize correctly
+- Verify service sharing doesn't cause conflicts
+- Test service disposal on app unmount
+- Validate all existing functionality preserved
+
+## Workout Orchestrator Analysis
+
+### Current Orchestrator Problems:
+
+1. **God Object Pattern** - Too many responsibilities mixed together
+2. **UI Coupling** - Manages UI concerns (callbacks, countdowns) that belong in hooks
+3. **Limited Reusability** - Hard to test individual coordination logic
+4. **Service Composition Issues** - StorageService unnecessarily wraps RecordingService
+
+### Service Independence Analysis:
+
+#### ✅ **Independent Services** (No coordination needed):
+
+- **CameraService** - Pure utility for camera stream management
+- **AudioService** - Pure utility for audio operations
+- **PredictionService** - Stateless ML model processor
+- **RenderingService** - Pure utility for canvas rendering
+- **RepCountingService** - Independent session state manager
+- **PredictionAnalysisService** - Stateful but independent processor
+
+#### 🔧 **Services Needing Refactoring**:
+
+- **StorageService** - Remove RecordingService composition, focus on file operations
+- **AudioFeedbackService** - Remove UI callbacks, focus on audio coordination
+- **RecordingService** - Extract from StorageService to independent manager
+
+#### 🔄 **Legitimate Coordination Needs**:
+
+1. **Animation Frame Pipeline**: Prediction → Analysis → RepCounting → UI Updates
+2. **Session Lifecycle**: Start/stop coordination across RepCounting, Storage, AudioFeedback
+3. **Settings Synchronization**: Propagate settings to all relevant services
+
+### Recommended Architecture: **Store-Based Service Management**
+
+Replace orchestrator with store actions and pure services
+
+### Migration Strategy for Phase 2.5:
+
+1. **Phase 2.5a: Extract Pure Services**
+
+   - Refactor StorageService to remove RecordingService composition
+   - Remove UI callbacks from AudioFeedbackService
+   - Create independent RecordingService
+
+2. **Phase 2.5b: Create Services Store**
+
+   - Move service instances to centralized store
+   - Implement coordination actions in store
+   - Keep orchestrator temporarily for comparison
+
+3. **Phase 2.5c: Move Animation Loop to Hook**
+
+   - Extract frame processing to custom hook using services store
+   - Remove frame processing from orchestrator
+   - Test processing pipeline works correctly
+
+4. **Phase 2.5d: Remove Orchestrator**
+   - Update hooks to use services store directly
+   - Remove WorkoutOrchestratorService completely
+   - Verify all functionality preserved
+
+### Benefits of This Approach:
+
+1. **Better Separation of Concerns** - UI logic stays in UI layer, business logic in store
+2. **Improved Testability** - Each service and coordination action can be tested independently
+3. **Better Reusability** - Services become pure utilities usable in different contexts
+4. **Clearer Dependencies** - Store actions make coordination logic explicit
+5. **Easier Debugging** - Clear data flow through store instead of hidden in orchestrator
+
+**Conclusion: Remove the orchestrator and move coordination to store-based management.**
 
 ### 🔄 NEXT: Phase 3 - Component Decomposition by Feature
 
@@ -204,11 +400,13 @@ src/
 **Status:** ✅ COMPLETED - January 2025
 
 **Objectives:**
+
 - Establish feature-based directory structure
-- Extract time formatting and constants  
+- Extract time formatting and constants
 - Remove magic numbers and inline calculations
 
 **✅ Implementation Completed:**
+
 1. ✅ Created feature directories: `src/features/workout/` and `src/features/sessions/`
 2. ✅ Created `src/shared/` for reusable components
 3. ✅ Moved existing components to appropriate feature folders
@@ -216,43 +414,6 @@ src/
 5. ✅ Updated all import paths across codebase
 6. ✅ Removed old `src/ui/` directory
 7. ✅ Verified application builds and runs correctly
-
-**New Files:**
-
-```typescript
-// src/shared/constants/storage-config.ts
-export const STORAGE_CONFIG = {
-  FILE_NAMES: {
-    VIDEO: "recording.webm",
-    METADATA: "metadata.json",
-  },
-  PREFIX: "workout_",
-  SETTINGS_KEY: "workout_settings",
-} as const;
-
-// src/features/workout/constants/workout-limits.ts
-export const WORKOUT_LIMITS = {
-  MAX_COUNTDOWN: 30,
-  MAX_SESSION_DURATION: 10800, // 3 hours
-  MAX_BEEP_INTERVAL_REPS: 100,
-  MAX_BEEP_INTERVAL_SECONDS: 600,
-} as const;
-
-// src/shared/utils/formatting-utils.ts
-export const formatSessionTime = (startTime: number): string => {
-  const elapsed = Date.now() - startTime;
-  return formatDuration(elapsed);
-};
-
-export const formatDate = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-```
 
 **Risk Level:** Low
 **Dependencies:** Add to package.json: None required
@@ -262,14 +423,16 @@ export const formatDate = (timestamp: number): string => {
 **Status:** 🔄 READY TO START
 
 **Current Problems to Solve:**
+
 - `src/features/workout/hooks/use-workout.ts` is 206 lines of mixed concerns
 - Service-to-UI communication uses callbacks instead of reactive patterns
 - No centralized state management - each component manages own state
 - Settings and session state scattered across multiple components
 
 **Objectives:**
+
 - Implement Zustand store with separated concerns
-- Replace callback-based service communication  
+- Replace callback-based service communication
 - Centralize application state
 - Break down the massive useWorkout hook
 
@@ -280,105 +443,16 @@ export const formatDate = (timestamp: number): string => {
 2. **Create the store file:** `src/shared/store/workout-store.ts`
    - Separate business state (session, settings) from UI state (countdown, loading)
    - Replace callback functions with store actions
-   
 3. **Key files that need modification:**
+
    - `src/features/workout/hooks/use-workout.ts` - break into smaller focused hooks
    - `src/service/workout-orchestrator.service.ts` - remove callbacks, use store instead
    - `src/features/workout/components/workout-page.tsx` - simplify by using store
 
-4. **Migration strategy:** 
+4. **Migration strategy:**
    - Keep existing useWorkout hook working alongside new store initially
    - Gradually move components to use store hooks
    - Remove old hooks once migration is complete
-
-**New Files:**
-
-```typescript
-// src/shared/store/workout-store.ts
-import { create } from "zustand";
-import { WorkoutSession } from "../../service/rep-counting.service";
-import { WorkoutSettings } from "../types/workout-types";
-
-interface WorkoutState {
-  // Business State
-  currentSession: WorkoutSession | null;
-  isSessionActive: boolean;
-  settings: WorkoutSettings;
-
-  // UI State
-  countdown: number | null;
-  sessionEndCountdown: number | null;
-  error: string | null;
-  isModelLoading: boolean;
-
-  // Actions
-  updateSession: (session: WorkoutSession | null) => void;
-  updateSettings: (settings: WorkoutSettings) => void;
-  setCountdown: (countdown: number | null) => void;
-  setSessionEndCountdown: (countdown: number | null) => void;
-  setError: (error: string | null) => void;
-  setModelLoading: (loading: boolean) => void;
-  setSessionActive: (active: boolean) => void;
-}
-
-export const useWorkoutStore = create<WorkoutState>((set) => ({
-  // Initial state
-  currentSession: null,
-  isSessionActive: false,
-  settings: {
-    countdownDuration: 3,
-    sessionDuration: null,
-    autoStopOnTimeLimit: false,
-    beepInterval: 0,
-    beepUnit: "reps",
-    announcementInterval: 0,
-    announcementUnit: "seconds",
-  },
-  countdown: null,
-  sessionEndCountdown: null,
-  error: null,
-  isModelLoading: true,
-
-  // Actions
-  updateSession: (session) => set({ currentSession: session }),
-  updateSettings: (settings) => set({ settings }),
-  setCountdown: (countdown) => set({ countdown }),
-  setSessionEndCountdown: (sessionEndCountdown) => set({ sessionEndCountdown }),
-  setError: (error) => set({ error }),
-  setModelLoading: (isModelLoading) => set({ isModelLoading }),
-  setSessionActive: (isSessionActive) => set({ isSessionActive }),
-}));
-
-// src/features/workout/hooks/use-workout-actions.ts
-export const useWorkoutActions = () => {
-  const orchestrator = useWorkoutOrchestrator();
-  const { setError, setCountdown, setSessionActive } = useWorkoutStore();
-
-  const startSession = useCallback(async () => {
-    if (!orchestrator.current) return;
-
-    try {
-      setError(null);
-      // Implementation details...
-    } catch (error) {
-      setError("Failed to start workout session. Please try again.");
-    }
-  }, [orchestrator, setError]);
-
-  const stopSession = useCallback(async () => {
-    if (!orchestrator.current) return;
-
-    try {
-      await orchestrator.current.stop();
-      setSessionActive(false);
-    } catch (error) {
-      setError("Failed to stop workout session.");
-    }
-  }, [orchestrator, setSessionActive, setError]);
-
-  return { startSession, stopSession };
-};
-```
 
 **Risk Level:** Medium
 **Dependencies:** `zustand`
@@ -397,136 +471,6 @@ export const useWorkoutActions = () => {
 2. Break down control section into focused components
 3. Extract SessionCard and related components
 4. Create shared UI components
-
-**New Files:**
-
-```typescript
-// src/shared/components/ui/metric-display.tsx
-interface MetricDisplayProps {
-  value: string | number;
-  label: string;
-  className?: string;
-}
-
-export function MetricDisplay({ value, label, className }: MetricDisplayProps) {
-  return (
-    <div className={`${styles.metric} ${className || ""}`}>
-      <div className={styles.metricValue}>{value}</div>
-      <div className={styles.metricLabel}>{label}</div>
-    </div>
-  );
-}
-
-// src/features/workout/components/workout-metrics.tsx
-import { MetricDisplay } from "../../../shared/components/ui/metric-display";
-import { formatSessionTime } from "../../../shared/utils/formatting-utils";
-import { WorkoutSession } from "../../../service/rep-counting.service";
-
-interface WorkoutMetricsProps {
-  session: WorkoutSession | null;
-}
-
-export const WorkoutMetrics = ({ session }: WorkoutMetricsProps) => {
-  return (
-    <div className={styles.overlayMetrics}>
-      <MetricDisplay value={session?.totalReps || 0} label="Reps" />
-      <MetricDisplay
-        value={session ? Math.round(session.repsPerMinute) : 0}
-        label="Avg RPM"
-      />
-      <MetricDisplay
-        value={session ? formatSessionTime(session.startTime) : "00:00"}
-        label="Time"
-      />
-      <MetricDisplay
-        value={session?.estimatedRepsPerMinute || 0}
-        label="Current RPM"
-      />
-    </div>
-  );
-};
-
-// src/features/workout/components/workout-controls.tsx
-import { WorkoutStatus } from "./workout-status";
-import { ControlButtons } from "./control-buttons";
-import { WorkoutSettings } from "./workout-settings";
-
-export const WorkoutControls = () => {
-  return (
-    <div className={styles.controls}>
-      <WorkoutStatus />
-      <div className={styles.buttonRow}>
-        <ControlButtons />
-        <WorkoutSettings />
-      </div>
-    </div>
-  );
-};
-
-// src/features/sessions/components/session-card.tsx
-import { useState } from "preact/hooks";
-import { SessionActions } from "./session-actions";
-import { RepChart } from "./rep-chart";
-import {
-  formatDuration,
-  formatDate,
-} from "../../../shared/utils/formatting-utils";
-import { WorkoutMetadata } from "../../../service/storage.service";
-
-interface SessionCardProps {
-  session: WorkoutMetadata;
-  onView: () => void;
-  onDownload: () => void;
-  onDelete: () => void;
-}
-
-export function SessionCard({
-  session,
-  onView,
-  onDownload,
-  onDelete,
-}: SessionCardProps) {
-  const [showChart, setShowChart] = useState(false);
-
-  return (
-    <div className={styles.sessionCard}>
-      <div className={styles.sessionHeader}>
-        <div className={styles.sessionMeta}>
-          <div className={styles.sessionDate}>
-            {formatDate(session.timestamp)}
-          </div>
-          <div className={styles.sessionDuration}>
-            {formatDuration(session.duration)}
-          </div>
-        </div>
-        <div className={styles.sessionStats}>
-          <div className={styles.sessionStat}>
-            <span className={styles.sessionStatValue}>{session.totalReps}</span>
-            <span className={styles.sessionStatLabel}>reps</span>
-          </div>
-          <div className={styles.sessionStat}>
-            <span className={styles.sessionStatValue}>
-              {Math.round(session.avgRepsPerMinute)}
-            </span>
-            <span className={styles.sessionStatLabel}>rpm</span>
-          </div>
-        </div>
-      </div>
-
-      <SessionActions
-        onView={onView}
-        onDownload={onDownload}
-        onDelete={onDelete}
-        onToggleChart={() => setShowChart(!showChart)}
-        showChart={showChart}
-        hasVideo={session.videoSize > 0}
-      />
-
-      {showChart && <RepChart session={session} />}
-    </div>
-  );
-}
-```
 
 **Risk Level:** Medium
 **Dependencies:** None
@@ -547,205 +491,6 @@ export function SessionCard({
 4. Create settings management hook
 5. Compose hooks in components as needed
 
-**New Files:**
-
-```typescript
-// src/features/workout/hooks/use-workout-session.ts
-export const useWorkoutSession = () => {
-  const session = useWorkoutStore((state) => state.currentSession);
-  const isActive = useWorkoutStore((state) => state.isSessionActive);
-
-  return { session, isActive };
-};
-
-// src/features/workout/hooks/use-workout-countdown.ts
-export const useWorkoutCountdown = () => {
-  const { countdown, setCountdown } = useWorkoutStore();
-  const orchestrator = useWorkoutOrchestrator();
-  const countdownIntervalRef = useRef<number | null>(null);
-
-  const startCountdown = useCallback(
-    async (duration: number) => {
-      if (!orchestrator.current) return;
-
-      let count = duration;
-      if (count === 0) {
-        startWorkout();
-        return;
-      }
-
-      setCountdown(count);
-
-      if (orchestrator.current) {
-        orchestrator.current.playCountdownBeep();
-      }
-
-      countdownIntervalRef.current = window.setInterval(async () => {
-        count--;
-        if (count > 0) {
-          setCountdown(count);
-          if (orchestrator.current) {
-            await orchestrator.current.playCountdownBeep();
-          }
-        } else {
-          setCountdown(null);
-          if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-            countdownIntervalRef.current = null;
-          }
-
-          if (orchestrator.current) {
-            await orchestrator.current.playStartBeep();
-          }
-          startWorkout();
-        }
-      }, 1000);
-    },
-    [orchestrator, setCountdown]
-  );
-
-  const clearCountdown = useCallback(() => {
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-      setCountdown(null);
-    }
-  }, [setCountdown]);
-
-  return { countdown, startCountdown, clearCountdown };
-};
-
-// src/features/workout/hooks/use-workout-orchestrator.ts
-export const useWorkoutOrchestrator = () => {
-  const orchestratorRef = useRef<WorkoutOrchestratorService | null>(null);
-  const { settings, updateSession, setSessionEndCountdown, setModelLoading } =
-    useWorkoutStore();
-
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        const storageService = new StorageService();
-        await storageService.initialize();
-
-        const savedSettings = storageService.loadSettings();
-        const defaultSettings = storageService.getDefaultSettings();
-        const finalSettings = savedSettings
-          ? { ...defaultSettings, ...savedSettings }
-          : defaultSettings;
-
-        orchestratorRef.current = new WorkoutOrchestratorService(
-          finalSettings,
-          (session) => updateSession(session),
-          (countdown) => setSessionEndCountdown(countdown),
-          () => {
-            if (orchestratorRef.current) {
-              orchestratorRef.current.stop();
-              // Auto-stop logic
-            }
-          }
-        );
-
-        await orchestratorRef.current.initialize();
-        setModelLoading(false);
-      } catch (error) {
-        console.error("Failed to initialize workout service:", error);
-        setModelLoading(false);
-      }
-    };
-
-    initialize();
-
-    return () => {
-      if (orchestratorRef.current) {
-        orchestratorRef.current.dispose();
-      }
-    };
-  }, []);
-
-  return orchestratorRef;
-};
-
-// src/features/sessions/hooks/use-sessions-data.ts
-export const useSessionsData = () => {
-  const [sessions, setSessions] = useState<WorkoutMetadata[]>([]);
-  const { data, loading, error, execute } =
-    useAsyncOperation<WorkoutMetadata[]>();
-
-  useEffect(() => {
-    execute(async () => {
-      const storageService = new StorageService();
-      await storageService.initialize();
-      return await storageService.getAllWorkouts();
-    });
-  }, [execute]);
-
-  useEffect(() => {
-    if (data) {
-      setSessions(data);
-    }
-  }, [data]);
-
-  return { sessions, loading, error };
-};
-
-// src/features/sessions/hooks/use-session-actions.ts
-export const useSessionActions = () => {
-  const [storageService] = useState(() => new StorageService());
-
-  const viewRecording = useCallback(
-    async (sessionId: string) => {
-      try {
-        const workout = await storageService.getWorkout(sessionId);
-        if (workout?.videoBlob) {
-          const videoUrl = URL.createObjectURL(workout.videoBlob);
-          window.open(videoUrl, "_blank");
-        }
-      } catch (error) {
-        console.error("Failed to view recording:", error);
-      }
-    },
-    [storageService]
-  );
-
-  const downloadRecording = useCallback(
-    async (sessionId: string) => {
-      try {
-        const workout = await storageService.getWorkout(sessionId);
-        if (workout?.videoBlob) {
-          const url = URL.createObjectURL(workout.videoBlob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `workout-${sessionId}.webm`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }
-      } catch (error) {
-        console.error("Failed to download recording:", error);
-      }
-    },
-    [storageService]
-  );
-
-  const deleteSession = useCallback(
-    async (sessionId: string, onSuccess: (id: string) => void) => {
-      if (confirm("Are you sure you want to delete this session?")) {
-        try {
-          await storageService.deleteWorkout(sessionId);
-          onSuccess(sessionId);
-        } catch (error) {
-          console.error("Failed to delete session:", error);
-        }
-      }
-    },
-    [storageService]
-  );
-
-  return { viewRecording, downloadRecording, deleteSession };
-};
-```
-
 **Risk Level:** High (Most critical phase)
 **Dependencies:** None
 
@@ -765,122 +510,6 @@ export const useSessionActions = () => {
 4. Replace manual loading/error state management with hook
 5. Add error recovery mechanisms
 
-**New Files:**
-
-```typescript
-// src/shared/components/ui/error-boundary.tsx
-import { Component, ComponentChildren } from 'preact';
-
-interface Props {
-  children: ComponentChildren;
-  fallback?: ComponentChildren;
-}
-
-interface State {
-  hasError: boolean;
-  error?: Error;
-}
-
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: any) {
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback || (
-        <div className={styles.errorFallback}>
-          <h2>Something went wrong</h2>
-          <details>
-            {this.state.error?.message}
-          </details>
-          <button onClick={() => this.setState({ hasError: false })}>
-            Try again
-          </button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-// src/shared/hooks/use-async-operation.ts
-import { useState, useCallback } from 'preact/hooks';
-
-interface AsyncState<T> {
-  data: T | null;
-  loading: boolean;
-  error: Error | null;
-}
-
-export const useAsyncOperation = <T>() => {
-  const [state, setState] = useState<AsyncState<T>>({
-    data: null,
-    loading: false,
-    error: null,
-  });
-
-  const execute = useCallback(async (operation: () => Promise<T>) => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    try {
-      const data = await operation();
-      setState({ data, loading: false, error: null });
-      return data;
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: error as Error
-      }));
-      throw error;
-    }
-  }, []);
-
-  const reset = useCallback(() => {
-    setState({ data: null, loading: false, error: null });
-  }, []);
-
-  return { ...state, execute, reset };
-};
-
-// src/features/workout/components/workout-error-fallback.tsx
-interface WorkoutErrorFallbackProps {
-  error: Error;
-  resetError: () => void;
-}
-
-export function WorkoutErrorFallback({ error, resetError }: WorkoutErrorFallbackProps) {
-  return (
-    <div className={styles.errorContainer}>
-      <div className={styles.errorIcon}>⚠️</div>
-      <h3>Workout Error</h3>
-      <p>Failed to initialize workout features: {error.message}</p>
-      <div className={styles.errorActions}>
-        <button onClick={resetError} className={styles.retryButton}>
-          Try Again
-        </button>
-        <button
-          onClick={() => window.location.reload()}
-          className={styles.refreshButton}
-        >
-          Refresh Page
-        </button>
-      </div>
-    </div>
-  );
-}
-```
-
 **Risk Level:** Low
 **Dependencies:** None
 
@@ -899,115 +528,6 @@ export function WorkoutErrorFallback({ error, resetError }: WorkoutErrorFallback
 3. Optimize chart data generation
 4. Add useCallback for event handlers
 5. Profile and measure performance improvements
-
-**New Files:**
-
-```typescript
-// src/shared/hooks/use-optimized-session.ts
-import { useMemo } from "preact/hooks";
-import { useWorkoutStore } from "../store/workout-store";
-import { formatSessionTime } from "../utils/formatting-utils";
-
-export const useOptimizedSession = () => {
-  const session = useWorkoutStore((state) => state.currentSession);
-
-  const metrics = useMemo(() => {
-    if (!session) return null;
-
-    return {
-      formattedTime: formatSessionTime(session.startTime),
-      avgRpm: Math.round(session.repsPerMinute),
-      currentRpm: session.estimatedRepsPerMinute || 0,
-      totalReps: session.totalReps,
-    };
-  }, [
-    session?.startTime,
-    session?.repsPerMinute,
-    session?.estimatedRepsPerMinute,
-    session?.totalReps,
-  ]);
-
-  return { session, metrics };
-};
-
-// src/features/sessions/utils/chart-data-utils.ts
-import { WorkoutMetadata, Rep } from "../../../service/storage.service";
-
-export const generateRepChartData = (
-  reps: Rep[],
-  sessionStart: number,
-  duration: number
-) => {
-  const repsPerMinute = new Map<number, number>();
-
-  reps.forEach((rep) => {
-    const minute = Math.floor((rep.timestamp - sessionStart) / 60000);
-    repsPerMinute.set(minute, (repsPerMinute.get(minute) || 0) + 1);
-  });
-
-  const totalMinutes = Math.ceil(duration / 60000);
-  const chartData: Array<{ minute: number; reps: number }> = [];
-
-  for (let i = 0; i < totalMinutes; i++) {
-    chartData.push({
-      minute: i + 1,
-      reps: repsPerMinute.get(i) || 0,
-    });
-  }
-
-  return chartData;
-};
-
-// src/features/sessions/components/optimized-rep-chart.tsx
-import { memo, useMemo } from "preact/hooks";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import { generateRepChartData } from "../utils/chart-data-utils";
-import { WorkoutMetadata } from "../../../service/storage.service";
-
-interface OptimizedRepChartProps {
-  session: WorkoutMetadata;
-}
-
-export const OptimizedRepChart = memo(({ session }: OptimizedRepChartProps) => {
-  const chartData = useMemo(
-    () =>
-      generateRepChartData(session.reps, session.timestamp, session.duration),
-    [session.reps, session.timestamp, session.duration]
-  );
-
-  return (
-    <div className={styles.chart}>
-      <div className={styles.chartTitle}>Reps per Minute</div>
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="minute" tickFormatter={(value: any) => `${value}m`} />
-          <YAxis />
-          <Tooltip
-            labelFormatter={(value: any) => `Minute ${value}`}
-            formatter={(value: any) => [`${value}`, "Reps"]}
-          />
-          <Line
-            type="monotone"
-            dataKey="reps"
-            stroke="var(--primary-color)"
-            strokeWidth={2}
-            dot={{ r: 3 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-});
-```
 
 **Risk Level:** Low
 **Dependencies:** None

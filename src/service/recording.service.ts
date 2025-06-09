@@ -5,6 +5,15 @@ export interface RecordingSession {
   videoSize: number;
 }
 
+export interface RecordingResult {
+  workoutId: string;
+  videoSize: number;
+}
+
+/**
+ * Pure recording service responsible for managing MediaRecorder
+ * and writing video data to FileSystem streams
+ */
 export class RecordingService {
   private activeRecording: RecordingSession | null = null;
 
@@ -13,6 +22,10 @@ export class RecordingService {
     stream: MediaStream,
     videoWriter: FileSystemWritableFileStream
   ): Promise<void> {
+    if (this.activeRecording) {
+      throw new Error("Recording already in progress");
+    }
+
     const mediaRecorder = new MediaRecorder(stream, {
       mimeType: "video/webm;codecs=vp9",
     });
@@ -34,7 +47,7 @@ export class RecordingService {
     mediaRecorder.start(1000);
   }
 
-  async stopRecording(): Promise<{ workoutId: string; videoSize: number }> {
+  async stopRecording(): Promise<RecordingResult> {
     if (!this.activeRecording) {
       throw new Error("No active recording");
     }
@@ -63,5 +76,16 @@ export class RecordingService {
 
   getCurrentRecordingId(): string | null {
     return this.activeRecording?.workoutId || null;
+  }
+
+  getRecordingSize(): number {
+    return this.activeRecording?.videoSize || 0;
+  }
+
+  dispose(): void {
+    if (this.activeRecording) {
+      this.activeRecording.mediaRecorder.stop();
+      this.activeRecording = null;
+    }
   }
 }

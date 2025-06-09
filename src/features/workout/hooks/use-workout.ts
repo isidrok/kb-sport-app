@@ -1,36 +1,43 @@
 import { useRef } from "preact/hooks";
 import { useWorkoutStore } from "../../../shared/store/workout-store";
-import { useWorkoutOrchestrator } from "./use-workout-orchestrator";
 import { useWorkoutActions } from "./use-workout-actions";
+import { useServicesStore } from "../../../shared/store/services-store";
+import { useServicesInitialization } from "../../../shared/hooks/use-services-initialization";
 
 export function useWorkout() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Get state from store using individual selectors to avoid unnecessary re-renders
+  // Get state from workout store
   const currentSession = useWorkoutStore((state) => state.currentSession);
   const isSessionActive = useWorkoutStore((state) => state.isSessionActive);
   const countdown = useWorkoutStore((state) => state.countdown);
-  const sessionEndCountdown = useWorkoutStore(
-    (state) => state.sessionEndCountdown
-  );
+  const sessionEndCountdown = useWorkoutStore((state) => state.sessionEndCountdown);
   const error = useWorkoutStore((state) => state.error);
   const isModelLoading = useWorkoutStore((state) => state.isModelLoading);
-  const isSettingsLoaded = useWorkoutStore((state) => state.isSettingsLoaded);
   const settings = useWorkoutStore((state) => state.settings);
-  const isAudioAvailable = useWorkoutStore((state) => state.isAudioAvailable);
-  const isSpeechAvailable = useWorkoutStore((state) => state.isSpeechAvailable);
 
-  // Initialize orchestrator
-  const { orchestrator, storageService } = useWorkoutOrchestrator();
+  // Initialize services and get status
+  const { servicesInitialized } = useServicesInitialization();
+  const audioFeedbackService = useServicesStore((state) => state.audioFeedbackService);
 
   // Get actions
-  const { startSession, stopSession, updateSettings } = useWorkoutActions(
-    orchestrator,
-    storageService,
-    videoRef,
-    canvasRef
-  );
+  const {
+    prepareCameraAndCanvas,
+    startCountdown,
+    stopSession,
+    updateSettings,
+  } = useWorkoutActions();
+
+  const handleStartSession = async () => {
+    if (!videoRef.current || !canvasRef.current || !settings) return;
+
+    // First prepare camera if not already done
+    await prepareCameraAndCanvas(videoRef.current, canvasRef.current);
+    
+    // Then start countdown
+    await startCountdown(settings.countdownDuration, videoRef.current);
+  };
 
   return {
     videoRef,
@@ -40,14 +47,13 @@ export function useWorkout() {
     countdown,
     sessionEndCountdown,
     error,
-    isModelLoading,
+    isModelLoading: isModelLoading || !servicesInitialized,
     settings,
-    isSettingsLoaded,
-    startSession,
+    startSession: handleStartSession,
     stopSession,
     updateSettings,
     // Audio feedback status methods
-    isAudioAvailable: () => isAudioAvailable,
-    isSpeechAvailable: () => isSpeechAvailable,
+    isAudioAvailable: audioFeedbackService?.isAudioAvailable() ?? false,
+    isSpeechAvailable: audioFeedbackService?.isSpeechAvailable() ?? false,
   };
 }

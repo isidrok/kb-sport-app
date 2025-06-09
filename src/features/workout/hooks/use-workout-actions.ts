@@ -1,141 +1,123 @@
-import { useCallback, useRef } from "preact/hooks";
+import { useCallback } from "preact/hooks";
+import { useServicesStore } from "../../../shared/store/services-store";
 import { useWorkoutStore } from "../../../shared/store/workout-store";
-import { WorkoutSettings } from "../../../shared/types/workout-types";
 
-export function useWorkoutActions(
-  orchestrator: any,
-  storageService: any,
-  videoRef: any,
-  canvasRef: any
-) {
-  const countdownIntervalRef = useRef<number | null>(null);
+/**
+ * Hook for workout actions using the new services store coordination
+ */
+export const useWorkoutActions = () => {
+  const {
+    prepareCamera,
+    startWorkoutSession,
+    stopWorkoutSession,
+    updateSettings,
+    playCountdownBeep,
+    playStartBeep,
+    servicesInitialized,
+  } = useServicesStore();
 
-  const clearCountdown = useCallback(() => {
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-      useWorkoutStore.getState().setCountdown(null);
-    }
-  }, []);
+  const {
+    setError,
+    setCountdown,
+    setSessionActive,
+    settings,
+  } = useWorkoutStore();
 
-  const startCountdown = useCallback(async (
-    duration: number,
-    onCountdownComplete: () => Promise<void>
-  ) => {
-    if (!orchestrator?.current) return;
-    
-    let count = duration;
-    if (count === 0) {
-      // No countdown, start immediately
-      await onCountdownComplete();
-      return;
-    }
-
-    useWorkoutStore.getState().setCountdown(count);
-    
-    // Play initial countdown beep for the first number
-    try {
-      await orchestrator.current.playCountdownBeep();
-    } catch (error) {
-      console.error("Failed to play countdown beep:", error);
-    }
-
-    countdownIntervalRef.current = window.setInterval(async () => {
-      count--;
-      if (count > 0) {
-        useWorkoutStore.getState().setCountdown(count);
-        // Play countdown beep for each remaining number
-        try {
-          if (orchestrator.current) {
-            await orchestrator.current.playCountdownBeep();
-          }
-        } catch (error) {
-          console.error("Failed to play countdown beep:", error);
-        }
-      } else {
-        useWorkoutStore.getState().setCountdown(null);
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-          countdownIntervalRef.current = null;
-        }
-        
-        // Play start beep and start workout
-        try {
-          if (orchestrator.current) {
-            await orchestrator.current.playStartBeep();
-          }
-          await onCountdownComplete();
-        } catch (error) {
-          console.error("Failed to complete countdown:", error);
-          useWorkoutStore.getState().setError("Failed to start workout after countdown.");
-        }
+  const prepareCameraAndCanvas = useCallback(
+    async (video: HTMLVideoElement, canvas: HTMLCanvasElement) => {
+      if (!servicesInitialized) {
+        setError("Services not initialized");
+        return;
       }
-    }, 1000);
-  }, [orchestrator]);
 
-  const startWorkout = useCallback(async () => {
-    if (!orchestrator?.current) return;
-    
-    try {
-      await orchestrator.current.startWorkout(videoRef.current!);
-      useWorkoutStore.getState().setSessionActive(true);
-    } catch (error) {
-      console.error("Failed to start workout:", error);
-      useWorkoutStore.getState().setError("Failed to start workout. Please try again.");
-    }
-  }, [orchestrator, videoRef]);
+      try {
+        setError(null);
+        await prepareCamera(video, canvas);
+      } catch (error) {
+        setError("Failed to initialize camera. Please check permissions.");
+        console.error("Camera preparation failed:", error);
+      }
+    },
+    [servicesInitialized, prepareCamera, setError]
+  );
 
-  const startSession = useCallback(async () => {
-    const store = useWorkoutStore.getState();
-    if (!orchestrator?.current || !store.settings) return;
-    
-    // Clear previous session data when starting new workout
-    store.resetSession();
-    
-    try {
-      // Prepare camera and start processing loop
-      await orchestrator.current.prepareCamera(videoRef.current!, canvasRef.current!);
-      
-      // Start countdown based on settings
-      const countdownDuration = store.settings.countdownDuration || 0;
-      await startCountdown(countdownDuration, startWorkout);
-    } catch (error) {
-      console.error("Failed to start session:", error);
-      store.setError("Failed to start workout session. Please try again.");
-    }
-  }, [orchestrator, videoRef, canvasRef, startCountdown, startWorkout]);
+  const startCountdown = useCallback(
+    async (duration: number, video: HTMLVideoElement) => {
+      if (!servicesInitialized) return;
+
+      let count = duration;
+      if (count === 0) {
+        await startSession(video);
+        return;
+      }
+
+      setCountdown(count);
+      await playCountdownBeep();
+
+      const countdownInterval = window.setInterval(async () => {
+        count--;
+        if (count > 0) {
+          setCountdown(count);
+          await playCountdownBeep();
+        } else {
+          setCountdown(null);
+          clearInterval(countdownInterval);
+          await playStartBeep();
+          await startSession(video);
+        }
+      }, 1000);
+    },
+    [servicesInitialized, playCountdownBeep, playStartBeep, setCountdown]
+  );
+
+  const startSession = useCallback(
+    async (video: HTMLVideoElement) => {
+      if (!servicesInitialized) return;
+
+      try {
+        setError(null);
+        await startWorkoutSession(video);
+        setSessionActive(true);
+      } catch (error) {
+        setError("Failed to start workout session. Please try again.");
+        console.error("Start session failed:", error);
+      }
+    },
+    [servicesInitialized, startWorkoutSession, setSessionActive, setError]
+  );
 
   const stopSession = useCallback(async () => {
-    // Clear countdown if running
-    clearCountdown();
-    
-    if (!orchestrator?.current) return;
-    
-    try {
-      await orchestrator.current.stop();
-      useWorkoutStore.getState().setSessionActive(false);
-      // Keep session data visible for user to see results
-    } catch (error) {
-      console.error("Failed to stop session:", error);
-      useWorkoutStore.getState().setError("Failed to stop workout session.");
-    }
-  }, [orchestrator, clearCountdown]);
+    if (!servicesInitialized) return;
 
-  const updateSettings = useCallback((newSettings: WorkoutSettings) => {
-    useWorkoutStore.getState().updateSettings(newSettings);
-    if (storageService?.current) {
-      storageService.current.saveSettings(newSettings);
+    try {
+      const session = await stopWorkoutSession();
+      setSessionActive(false);
+      return session;
+    } catch (error) {
+      setError("Failed to stop workout session.");
+      console.error("Stop session failed:", error);
+      return null;
     }
-    
-    // Update workout service if it exists
-    if (orchestrator?.current) {
-      orchestrator.current.updateSettings(newSettings);
-    }
-  }, [storageService, orchestrator]);
+  }, [servicesInitialized, stopWorkoutSession, setSessionActive, setError]);
+
+  const clearCountdown = useCallback(() => {
+    setCountdown(null);
+  }, [setCountdown]);
+
+  const handleSettingsUpdate = useCallback(
+    (newSettings: NonNullable<typeof settings>) => {
+      updateSettings(newSettings);
+    },
+    [updateSettings]
+  );
 
   return {
+    prepareCameraAndCanvas,
+    startCountdown,
     startSession,
     stopSession,
-    updateSettings,
+    clearCountdown,
+    updateSettings: handleSettingsUpdate,
+    isReady: servicesInitialized,
   };
-}
+};

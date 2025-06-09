@@ -14,7 +14,6 @@ export function WorkoutPage() {
     error,
     isModelLoading,
     settings,
-    isSettingsLoaded,
     startSession,
     stopSession,
     updateSettings,
@@ -112,7 +111,7 @@ export function WorkoutPage() {
               isModelLoading ||
               countdown !== null ||
               error !== null ||
-              !isSettingsLoaded
+              !settings
             }
           >
             {isModelLoading
