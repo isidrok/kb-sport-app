@@ -1,15 +1,4 @@
-export interface Rep {
-  timestamp: number;
-  armType: "left" | "right" | "both";
-}
-
-export interface WorkoutSession {
-  startTime: number;
-  reps: Rep[];
-  totalReps: number;
-  repsPerMinute: number;
-  estimatedRepsPerMinute: number;
-}
+import { Rep, WorkoutSession } from "../shared/types/workout-types";
 
 const SESSION_CONFIG = {
   RPM_WINDOW_MS: 60000, // 1 minute window for RPM calculation

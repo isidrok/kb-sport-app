@@ -1,3 +1,16 @@
+export interface Rep {
+  timestamp: number;
+  armType: "left" | "right" | "both";
+}
+
+export interface WorkoutSession {
+  startTime: number;
+  reps: Rep[];
+  totalReps: number;
+  repsPerMinute: number;
+  estimatedRepsPerMinute: number;
+}
+
 export interface WorkoutSettings {
   countdownDuration: number;
   sessionDuration: number | null; // null for unlimited

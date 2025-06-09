@@ -1,4 +1,4 @@
-import { WorkoutSession, Rep } from "./rep-counting.service";
+import { WorkoutSession, Rep } from "../shared/types/workout-types";
 import { STORAGE_CONFIG } from "../shared/constants/storage-config";
 
 export interface WorkoutMetadata {

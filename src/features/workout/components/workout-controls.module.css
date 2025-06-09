@@ -1,0 +1,87 @@
+.buttonRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.sessionButton {
+  padding: 0.75rem;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sessionButton.start {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sessionButton.start:hover {
+  background-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.sessionButton.stop {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sessionButton.stop:hover {
+  background-color: var(--danger);
+  transform: translateY(-1px);
+}
+
+.sessionButton:disabled {
+  background-color: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sessionButton:disabled:hover {
+  background-color: rgba(0, 0, 0, 0.5);
+  transform: none;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 640px) {
+  .sessionButton {
+    width: 50px;
+    height: 50px;
+    padding: 0.6rem;
+    font-size: 1.2rem;
+  }
+  
+  .buttonRow {
+    gap: 0.75rem;
+  }
+}
+
+/* Tablet and larger screens */
+@media (min-width: 768px) {
+  .sessionButton {
+    width: 70px;
+    height: 70px;
+    padding: 0.875rem;
+    font-size: 1.75rem;
+  }
+  
+  .buttonRow {
+    gap: 1.25rem;
+  }
+}

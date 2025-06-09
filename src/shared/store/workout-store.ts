@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { WorkoutSession } from "../../service/rep-counting.service";
+import { WorkoutSession } from "../types/workout-types";
 import { WorkoutSettings } from "../types/workout-types";
 
 interface WorkoutState {

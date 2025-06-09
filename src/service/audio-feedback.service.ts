@@ -1,5 +1,5 @@
 import { AudioService } from "./audio.service";
-import { WorkoutSession } from "./rep-counting.service";
+import { WorkoutSession } from "../shared/types/workout-types";
 import { WorkoutSettings } from "../shared/types/workout-types";
 
 /**

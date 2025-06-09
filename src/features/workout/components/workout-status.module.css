@@ -1,0 +1,131 @@
+.statusContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calibrationStatus {
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: var(--radius);
+  padding: 1rem;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 300px;
+}
+
+.calibrationStatus p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+}
+
+.calibrationStatus p:last-child {
+  margin-bottom: 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+}
+
+.countdownDisplay {
+  background: rgba(245, 158, 11, 0.9);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  text-align: center;
+  color: white;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 200px;
+}
+
+.countdownDisplay p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.countdownNumber {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+  animation: countdownPulse 1s ease-in-out;
+}
+
+@keyframes countdownPulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 1rem 0;
+  position: relative;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--primary-color);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progressFill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Mobile responsive styles */
+@media (max-width: 640px) {
+  .calibrationStatus {
+    padding: 0.75rem;
+    max-width: 250px;
+  }
+  
+  .countdownDisplay {
+    padding: 1rem;
+    max-width: 150px;
+  }
+  
+  .countdownNumber {
+    font-size: 2rem;
+  }
+}
