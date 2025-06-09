@@ -1,15 +1,7 @@
 import { WorkoutSession, Rep } from "./rep-counting.service";
 import { RecordingService } from "./recording.service";
-import { WorkoutSettings } from "../ui/WorkoutSettings";
-
-const STORAGE_CONFIG = {
-  FILE_NAMES: {
-    VIDEO: "recording.webm",
-    METADATA: "metadata.json",
-  },
-  PREFIX: "workout_",
-  SETTINGS_KEY: "workout_settings",
-} as const;
+import { WorkoutSettings } from "../shared/types/workout-types";
+import { STORAGE_CONFIG } from "../shared/constants/storage-config";
 
 export interface WorkoutMetadata {
   id: string;

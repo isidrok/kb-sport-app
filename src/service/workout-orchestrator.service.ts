@@ -5,7 +5,7 @@ import { RepCountingService, WorkoutSession } from "./rep-counting.service";
 import { PredictionAnalysisService } from "./prediction-analysis.service";
 import { StorageService } from "./storage.service";
 import { AudioFeedbackService } from "./audio-feedback.service";
-import { WorkoutSettings } from "../ui/WorkoutSettings";
+import { WorkoutSettings } from "../shared/types/workout-types";
 
 export class WorkoutOrchestratorService {
   private animationFrameId: number | null = null;

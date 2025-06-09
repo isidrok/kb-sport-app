@@ -1,6 +1,6 @@
 import { AudioService } from "./audio.service";
 import { WorkoutSession } from "./rep-counting.service";
-import { WorkoutSettings } from "../ui/WorkoutSettings";
+import { WorkoutSettings } from "../shared/types/workout-types";
 
 export class AudioFeedbackService {
   private audioService = new AudioService();

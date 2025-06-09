@@ -1,6 +1,6 @@
-import { useWorkout } from "./useWorkout";
-import { WorkoutSettingsMenu } from "./WorkoutSettings";
-import styles from "./WorkoutPage.module.css";
+import { useWorkout } from "../hooks/use-workout";
+import { WorkoutSettingsMenu } from "./workout-settings";
+import styles from "./workout-page.module.css";
 
 export function WorkoutPage() {
   const {

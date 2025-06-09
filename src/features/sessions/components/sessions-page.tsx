@@ -1,7 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
-import { StorageService, WorkoutMetadata } from "../service/storage.service";
+import { StorageService, WorkoutMetadata } from "../../../service/storage.service";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import styles from "./SessionsPage.module.css";
+import { formatDuration, formatDate } from "../../../shared/utils/formatting-utils";
+import styles from "./sessions-page.module.css";
 
 export function SessionsPage() {
   const [sessions, setSessions] = useState<WorkoutMetadata[]>([]);
@@ -67,20 +68,6 @@ export function SessionsPage() {
     setSelectedSession(selectedSession === sessionId ? null : sessionId);
   };
 
-  const formatDuration = (ms: number) => {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const renderRepChart = (session: WorkoutMetadata) => {
     // Create reps per minute data
