@@ -10,10 +10,10 @@ import { WorkoutSettings } from "../shared/types/workout-types";
 export class WorkoutOrchestratorService {
   private animationFrameId: number | null = null;
   private isWorkoutActive = false;
-  private onChange: (session: WorkoutSession | null) => void;
-  private onSessionEndCountdown?: (countdown: number | null) => void;
-  private onAutoStop?: () => void;
   private settings: WorkoutSettings;
+  private onSessionUpdate: (session: WorkoutSession | null) => void;
+  private onSessionEndCountdown: (countdown: number | null) => void;
+  private onAutoStop: () => void;
 
   private readonly services = {
     camera: new CameraService(),
@@ -27,19 +27,27 @@ export class WorkoutOrchestratorService {
 
   constructor(
     settings: WorkoutSettings,
-    onChange: (session: WorkoutSession | null) => void,
-    onSessionEndCountdown?: (countdown: number | null) => void,
-    onAutoStop?: () => void
+    onSessionUpdate: (session: WorkoutSession | null) => void,
+    onSessionEndCountdown: (countdown: number | null) => void,
+    onAutoStop: () => void
   ) {
     this.settings = settings;
-    this.onChange = onChange;
+    this.onSessionUpdate = onSessionUpdate;
     this.onSessionEndCountdown = onSessionEndCountdown;
     this.onAutoStop = onAutoStop;
   }
 
   async initialize(): Promise<void> {
-    // Initialize audio feedback service
-    this.services.audioFeedback = new AudioFeedbackService(this.settings, this.onSessionEndCountdown, this.onAutoStop);
+    // Initialize audio feedback service with callbacks
+    this.services.audioFeedback = new AudioFeedbackService(
+      this.settings, 
+      this.onSessionEndCountdown,
+      () => {
+        // Auto-stop callback
+        this.stop();
+        this.onAutoStop();
+      }
+    );
     
     await Promise.all([
       this.services.prediction.initialize(),
@@ -194,15 +202,16 @@ export class WorkoutOrchestratorService {
     }
 
     const session = this.services.repCounting.getCurrentSession();
+    
     if (session) {
       // Handle audio feedback for session updates
       if (this.services.audioFeedback) {
         this.services.audioFeedback.handleSessionUpdate(session);
       }
       
-      this.onChange({ ...session });
+      this.onSessionUpdate({ ...session });
     } else {
-      this.onChange(null);
+      this.onSessionUpdate(null);
     }
   }
 }

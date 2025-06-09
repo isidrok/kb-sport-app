@@ -1,5 +1,6 @@
 import { useWorkout } from "../hooks/use-workout";
 import { WorkoutSettingsMenu } from "./workout-settings";
+import { formatSessionTime } from "../../../shared/utils/formatting-utils";
 import styles from "./workout-page.module.css";
 
 export function WorkoutPage() {
@@ -48,15 +49,7 @@ export function WorkoutPage() {
         <div className={styles.metric}>
           <div className={styles.metricValue}>
             {currentSession
-              ? Math.floor((Date.now() - currentSession.startTime) / 60000)
-                  .toString()
-                  .padStart(2, "0") +
-                ":" +
-                Math.floor(
-                  ((Date.now() - currentSession.startTime) % 60000) / 1000
-                )
-                  .toString()
-                  .padStart(2, "0")
+              ? formatSessionTime(currentSession.startTime)
               : "00:00"}
           </div>
           <div className={styles.metricLabel}>Time</div>
