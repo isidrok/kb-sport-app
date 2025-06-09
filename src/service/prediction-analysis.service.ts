@@ -1,6 +1,6 @@
 import { Prediction } from "./prediction.service";
-import { COCO_KEYPOINTS } from "../config/coco-keypoints";
-import { CONFIDENCE_THRESHOLD } from "../config/services.config";
+import { COCO_KEYPOINTS } from "../shared/constants/coco-keypoints";
+import { CONFIDENCE_THRESHOLD } from "../shared/constants/services.config";
 
 const ANALYSIS_CONFIG = {
   SMOOTHING_WINDOW: 3,
@@ -10,7 +10,6 @@ const ANALYSIS_CONFIG = {
 } as const;
 
 type RepState = "ready" | "overhead" | "complete";
-
 
 interface ArmStateMachine {
   state: RepState;
@@ -58,24 +57,37 @@ export class PredictionAnalysisService {
     // Check all patterns and apply debounce per detection (like working version)
     const bothArmsRep = this.analyzeArmPattern(prediction, "both", currentTime);
     const leftArmRep = this.analyzeArmPattern(prediction, "left", currentTime);
-    const rightArmRep = this.analyzeArmPattern(prediction, "right", currentTime);
+    const rightArmRep = this.analyzeArmPattern(
+      prediction,
+      "right",
+      currentTime
+    );
 
     // Return first detected rep (prioritize both arms, then left, then right) with debounce
-    if (bothArmsRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+    if (
+      bothArmsRep &&
+      currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS
+    ) {
       this.lastRepTime = currentTime;
       return {
         detected: true,
         armType: "both",
         timestamp: currentTime,
       };
-    } else if (leftArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+    } else if (
+      leftArmRep &&
+      currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS
+    ) {
       this.lastRepTime = currentTime;
       return {
         detected: true,
         armType: "left",
         timestamp: currentTime,
       };
-    } else if (rightArmRep && currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS) {
+    } else if (
+      rightArmRep &&
+      currentTime - this.lastRepTime > ANALYSIS_CONFIG.REP_DEBOUNCE_MS
+    ) {
       this.lastRepTime = currentTime;
       return {
         detected: true,
@@ -114,9 +126,11 @@ export class PredictionAnalysisService {
     }
 
     // Require at least one wrist to be detected with sufficient confidence
-    return leftWrist[2] >= CONFIDENCE_THRESHOLD || rightWrist[2] >= CONFIDENCE_THRESHOLD;
+    return (
+      leftWrist[2] >= CONFIDENCE_THRESHOLD ||
+      rightWrist[2] >= CONFIDENCE_THRESHOLD
+    );
   }
-
 
   private analyzeArmPattern(
     prediction: Prediction,
@@ -127,10 +141,13 @@ export class PredictionAnalysisService {
     const { keypoints } = prediction;
     const leftWrist = keypoints[COCO_KEYPOINTS.left_wrist];
     const rightWrist = keypoints[COCO_KEYPOINTS.right_wrist];
-    
+
     if (armType === "both") {
       // For both arms, require both wrists to be detected
-      if (leftWrist[2] < CONFIDENCE_THRESHOLD || rightWrist[2] < CONFIDENCE_THRESHOLD) {
+      if (
+        leftWrist[2] < CONFIDENCE_THRESHOLD ||
+        rightWrist[2] < CONFIDENCE_THRESHOLD
+      ) {
         return false;
       }
     } else if (armType === "left") {
@@ -160,7 +177,10 @@ export class PredictionAnalysisService {
     }
   }
 
-  private isArmOverhead(prediction: Prediction, armType: "left" | "right" | "both"): boolean {
+  private isArmOverhead(
+    prediction: Prediction,
+    armType: "left" | "right" | "both"
+  ): boolean {
     const { keypoints } = prediction;
     const leftWrist = keypoints[COCO_KEYPOINTS.left_wrist];
     const rightWrist = keypoints[COCO_KEYPOINTS.right_wrist];
@@ -170,23 +190,31 @@ export class PredictionAnalysisService {
       // Only check arms that have sufficient confidence
       const leftValid = leftWrist[2] >= CONFIDENCE_THRESHOLD;
       const rightValid = rightWrist[2] >= CONFIDENCE_THRESHOLD;
-      
+
       // Both arms must be detected and overhead
-      return leftValid && rightValid && 
-             leftWrist[1] < nose[1] - 50 && rightWrist[1] < nose[1] - 50;
+      return (
+        leftValid &&
+        rightValid &&
+        leftWrist[1] < nose[1] - 50 &&
+        rightWrist[1] < nose[1] - 50
+      );
     }
-    
+
     const wrist = armType === "left" ? leftWrist : rightWrist;
-    
+
     // Check if the specific arm has sufficient confidence before checking position
     if (wrist[2] < CONFIDENCE_THRESHOLD) {
       return false;
     }
-    
+
     return wrist[1] < nose[1] - 50;
   }
 
-  private handleReadyState(overhead: boolean, currentTime: number, armType: "left" | "right" | "both"): boolean {
+  private handleReadyState(
+    overhead: boolean,
+    currentTime: number,
+    armType: "left" | "right" | "both"
+  ): boolean {
     const stateMachine = this.stateMachines[armType];
     if (overhead) {
       stateMachine.state = "overhead";
@@ -197,7 +225,11 @@ export class PredictionAnalysisService {
     return false;
   }
 
-  private handleOverheadState(overhead: boolean, currentTime: number, armType: "left" | "right" | "both"): boolean {
+  private handleOverheadState(
+    overhead: boolean,
+    currentTime: number,
+    armType: "left" | "right" | "both"
+  ): boolean {
     const stateMachine = this.stateMachines[armType];
     const holdTime = currentTime - stateMachine.overheadDetectedTime;
 
@@ -213,7 +245,11 @@ export class PredictionAnalysisService {
     return false;
   }
 
-  private handleCompleteState(overhead: boolean, currentTime: number, armType: "left" | "right" | "both"): boolean {
+  private handleCompleteState(
+    overhead: boolean,
+    currentTime: number,
+    armType: "left" | "right" | "both"
+  ): boolean {
     const stateMachine = this.stateMachines[armType];
     if (!overhead) {
       if (stateMachine.belowHeadStartTime === 0) {

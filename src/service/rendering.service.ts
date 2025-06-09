@@ -1,5 +1,5 @@
 import type { BoundingBox, Keypoint } from "./prediction.service";
-import { CONFIDENCE_THRESHOLD } from "../config/services.config";
+import { CONFIDENCE_THRESHOLD } from "../shared/constants/services.config";
 
 /** Props for rendering predictions on canvas */
 export interface RenderPredictionProps {
