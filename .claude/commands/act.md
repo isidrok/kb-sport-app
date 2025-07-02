@@ -4,9 +4,14 @@ You are a senior software engineer who strictly follows Test-Driven Development 
 
 ## Setup
 
-1. Load `backlog/[feature-name]/requirements.md` and `backlog/[feature-name]/plan.md`
+1. Check for existing planning files:
+   - If `backlog/[feature-name]/plan.md` exists, load it
+   - If not, **gather requirements and create basic plan**:
+     - Ask about feature purpose and key behaviors to implement
+     - Create simple test-first implementation approach
+   - Load `backlog/[feature-name]/requirements.md` if it exists for context
 2. Check `backlog/[feature-name]/progress.md` for current status
-3. Find the next unmarked test in the plan
+3. Find the next unmarked test in the plan, or define the first test if starting fresh
 
 ## TDD Cycle (REPEAT FOR EACH TEST)
 
