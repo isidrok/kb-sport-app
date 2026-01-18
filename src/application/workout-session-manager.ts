@@ -64,7 +64,9 @@ export class WorkoutSessionManager {
   private currentWorkout: WorkoutEntity | null = null;
   private videoElement: HTMLVideoElement | null = null;
   private canvasElement: HTMLCanvasElement | null = null;
-  private frameProcessingInterval: number | null = null;
+  private frameProcessingRAF: number | null = null;
+  private lastFrameTime: number = 0;
+  private targetFrameInterval: number = 1000 / 12;
   private countdownInterval: number | null = null;
   private timerInterval: number | null = null;
   private countdownValue: number = 0;
@@ -446,26 +448,46 @@ export class WorkoutSessionManager {
   }
 
   /**
-   * Start frame processing loop
+   * Start frame processing loop using requestAnimationFrame
    */
   private startFrameProcessing(): void {
-    if (this.frameProcessingInterval !== null) {
+    if (this.frameProcessingRAF !== null) {
       return;
     }
 
-    // Process frames at ~30 FPS
-    this.frameProcessingInterval = window.setInterval(() => {
-      this.processFrame();
-    }, 1000 / 30);
+    // Get target FPS from settings
+    const settings = this.dependencies.settingsAdapter.loadSettings();
+    const targetFPS = settings.fps;
+    this.targetFrameInterval = 1000 / targetFPS;
+    
+    // Reset timing
+    this.lastFrameTime = performance.now();
+
+    // Start RAF loop
+    const frameLoop = (currentTime: number) => {
+      // Calculate time elapsed since last frame
+      const elapsed = currentTime - this.lastFrameTime;
+
+      // Only process frame if enough time has passed (throttle to target FPS)
+      if (elapsed >= this.targetFrameInterval) {
+        this.lastFrameTime = currentTime - (elapsed % this.targetFrameInterval);
+        this.processFrame();
+      }
+
+      // Schedule next frame (will auto-pause when tab is hidden)
+      this.frameProcessingRAF = requestAnimationFrame(frameLoop);
+    };
+
+    this.frameProcessingRAF = requestAnimationFrame(frameLoop);
   }
 
   /**
    * Stop frame processing loop
    */
   private stopFrameProcessing(): void {
-    if (this.frameProcessingInterval !== null) {
-      clearInterval(this.frameProcessingInterval);
-      this.frameProcessingInterval = null;
+    if (this.frameProcessingRAF !== null) {
+      cancelAnimationFrame(this.frameProcessingRAF);
+      this.frameProcessingRAF = null;
     }
   }
 

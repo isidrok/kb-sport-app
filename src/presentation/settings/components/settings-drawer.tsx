@@ -164,10 +164,31 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                 }}
                 className={styles.input}
               />
-              <div className={styles.note}>
-                <Icon name="info" className={styles.noteIcon} />
-                Leave empty to stop immediately with no countdown
-              </div>
+            </div>
+            <div className={styles.field}>
+              <label htmlFor="fps" className={styles.label}>
+                Frame Rate (FPS)
+              </label>
+              <input
+                id="fps"
+                type="number"
+                min="1"
+                max="60"
+                placeholder="20"
+                value={formData.fps || ""}
+                onChange={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  updateField("fps", val ? parseInt(val, 10) : 0);
+                }}
+                onBlur={(e) => {
+                  // Apply default if field is empty or invalid on blur
+                  const val = (e.target as HTMLInputElement).value;
+                  if (!val || parseInt(val, 10) < 1) {
+                    updateField("fps", 20);
+                  }
+                }}
+                className={styles.input}
+              />
             </div>
           </section>
 

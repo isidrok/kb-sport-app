@@ -10,6 +10,9 @@ import {
   concat,
   tidy,
   zeros,
+  setBackend,
+  ready,
+  env,
   type Tensor3D,
   GraphModel,
 } from "@tensorflow/tfjs";
@@ -31,6 +34,27 @@ export class PredictionAdapter {
   private model: GraphModel | null = null;
 
   async initialize(): Promise<void> {
+    // Configure TensorFlow.js for optimal mobile performance
+    try {
+      // Try WebGL backend first (GPU acceleration)
+      await setBackend('webgl');
+      await ready();
+      
+      // Enable production mode (disables warnings)
+      env().set('PROD', true);
+      
+      // WebGL optimizations for mobile
+      env().set('WEBGL_PACK', true); // Use texture packing for better performance
+      env().set('WEBGL_FORCE_F16_TEXTURES', true); // Use 16-bit floats on mobile for speed
+      
+      console.log('TensorFlow.js backend:', env().getNumber('WEBGL_VERSION') === 2 ? 'WebGL 2.0' : 'WebGL 1.0');
+    } catch (error) {
+      console.warn('WebGL backend failed, falling back to CPU:', error);
+      // Fallback to CPU if WebGL fails
+      await setBackend('cpu');
+      await ready();
+    }
+
     const modelURL =
       import.meta.env.BASE_URL + "models/yolov8n-pose_web_model/model.json";
     this.model = await loadGraphModel(modelURL);

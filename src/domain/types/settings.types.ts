@@ -11,6 +11,7 @@ export interface SettingsData {
   startCountdownSeconds: number;
   autoStopWorkoutTime: string | null; // format: "mm:ss"
   stopWorkoutCountdown: number | null; // seconds, null = no countdown
+  fps: number; // frames per second for pose detection (1-60)
 
   // Recording Section
   recordVideo: boolean;
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   startCountdownSeconds: 5,
   autoStopWorkoutTime: null,
   stopWorkoutCountdown: null,
+  fps: 20,
 
   // Recording
   recordVideo: true,

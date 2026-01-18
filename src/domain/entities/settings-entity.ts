@@ -40,6 +40,10 @@ export class SettingsEntity {
     return this.data.stopWorkoutCountdown;
   }
 
+  get fps(): number {
+    return this.data.fps;
+  }
+
   get audioFeedbackEnabled(): boolean {
     return this.data.audioFeedbackEnabled;
   }
@@ -84,6 +88,11 @@ export class SettingsEntity {
   setStopWorkoutCountdown(seconds: number | null): void {
     this.data.stopWorkoutCountdown =
       seconds !== null && seconds > 0 ? seconds : null;
+  }
+
+  setFps(fps: number): void {
+    // Clamp FPS between 1 and 60
+    this.data.fps = Math.max(1, Math.min(60, Math.floor(fps)));
   }
 
   setAudioFeedbackEnabled(enabled: boolean): void {
