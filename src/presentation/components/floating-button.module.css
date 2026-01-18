@@ -1,66 +1,57 @@
-/* History button styling to match workout controls */
-.historyButton {
-  /* Frosted glass effect matching workout controls */
+/* Floating Button Base */
+.floatingButton {
   background: rgba(64, 64, 64, 0.8);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(128, 128, 128, 0.6);
   border-radius: 50px;
-
-  /* Button styling */
   padding: 1rem 2rem;
   font-size: 1.1rem;
   font-weight: 600;
   color: white;
   cursor: pointer;
   transition: all 0.3s ease;
-
-  /* Touch-friendly sizing */
   min-width: 120px;
   min-height: 56px;
-
-  /* Center the icon */
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Icon sizing */
-.buttonIcon {
-  font-size: 2rem;
-  display: inline-block;
-  width: auto;
-}
-
-/* Hover state */
-.historyButton:hover:not(:disabled) {
-  background: rgba(96, 96, 96, 0.9);
+.floatingButton:hover:not(:disabled) {
+  background: var(--primary-medium);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px var(--primary-light);
 }
 
-/* Active state */
-.historyButton:active:not(:disabled) {
+.floatingButton:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
-/* Disabled state */
-.historyButton:disabled {
+.floatingButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   background: rgba(64, 64, 64, 0.5);
 }
 
-/* Mobile optimization */
+.floatingButtonIcon {
+  font-size: 2rem;
+  display: inline-block;
+  width: auto;
+}
+
+/* Mobile styles */
 @media (max-width: 768px) {
-  .historyButton {
+  .floatingButton {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
     min-height: 48px;
     min-width: 64px;
   }
 
-  .buttonIcon {
+  .floatingButtonIcon {
     font-size: 1.5rem;
   }
 }

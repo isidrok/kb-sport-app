@@ -1,5 +1,4 @@
-import { Icon } from "@/presentation/components/icon";
-import styles from "./workout-history-button.module.css";
+import { FloatingButton } from "@/presentation/components/floating-button";
 
 interface WorkoutHistoryButtonProps {
   onClick: () => void;
@@ -11,13 +10,11 @@ export function WorkoutHistoryButton({
   isDisabled,
 }: WorkoutHistoryButtonProps) {
   return (
-    <button
-      className={styles.historyButton}
+    <FloatingButton
+      icon="history"
       onClick={onClick}
-      data-testid="history-button"
       disabled={isDisabled}
-    >
-      <Icon name="history" className={styles.buttonIcon} />
-    </button>
+      testId="history-button"
+    />
   );
 }

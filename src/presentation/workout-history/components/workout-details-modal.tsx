@@ -2,6 +2,8 @@ import { useEffect } from "preact/hooks";
 import { WorkoutMetadata } from "@/domain/types/workout-storage.types";
 import { formatDateTime } from "@/presentation/format/date";
 import { Icon } from "@/presentation/components/icon";
+import { CloseButton } from "@/presentation/components/close-button";
+import { ScrollableContainer } from "@/presentation/components/scrollable-container";
 import { RepsPerMinuteChart } from "./reps-per-minute-chart";
 import styles from "./workout-details-modal.module.css";
 
@@ -58,16 +60,10 @@ export function WorkoutDetailsModal({
       >
         <div className={styles.header}>
           <h2 className={styles.title}>Workout Details</h2>
-          <button
-            className={styles.closeButton}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <Icon name="close" />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
-        <div className={styles.content}>
+        <ScrollableContainer className={styles.content}>
           {isLoading ? (
             <div className={styles.loading}>
               <div className={styles.loadingIcon}>
@@ -108,7 +104,7 @@ export function WorkoutDetailsModal({
               <div>Failed to load workout details</div>
             </div>
           )}
-        </div>
+        </ScrollableContainer>
       </div>
     </div>
   );

@@ -2,6 +2,8 @@ import { useEffect, useRef } from "preact/hooks";
 import { WorkoutCard } from "./workout-card";
 import { useWorkoutHistory } from "../../hooks/use-workout-history";
 import { Icon } from "@/presentation/components/icon";
+import { CloseButton } from "@/presentation/components/close-button";
+import { ScrollableContainer } from "@/presentation/components/scrollable-container";
 import styles from "./workout-history-drawer.module.css";
 
 interface WorkoutHistoryDrawerProps {
@@ -72,16 +74,10 @@ export function WorkoutHistoryDrawer({
       >
         <div className={styles.header}>
           <h2 className={styles.title}>Workout History</h2>
-          <button
-            className={styles.closeButton}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <Icon name="close" />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
-        <div className={styles.content}>
+        <ScrollableContainer className={styles.content}>
           {isLoading ? (
             <div className={styles.loading}>
               <div className={styles.loadingIcon}>
@@ -128,7 +124,7 @@ export function WorkoutHistoryDrawer({
               ))}
             </div>
           )}
-        </div>
+        </ScrollableContainer>
       </div>
     </div>
   );

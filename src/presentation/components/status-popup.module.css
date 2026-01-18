@@ -38,11 +38,11 @@
 
 .loadingIcon {
   animation: pulse 1.5s ease-in-out infinite;
-  color: #3b82f6;
+  color: var(--primary-color);
 }
 
 .errorIcon {
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .message {

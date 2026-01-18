@@ -107,7 +107,7 @@ export function RepsPerMinuteChart({ metadata }: RepsPerMinuteChartProps) {
             <Line
               type="monotone"
               dataKey="left"
-              stroke="#3b82f6"
+              stroke="#16a34a"
               name="Left Hand"
               strokeWidth={2}
               dot={{ r: 4 }}
@@ -129,7 +129,7 @@ export function RepsPerMinuteChart({ metadata }: RepsPerMinuteChartProps) {
             <Line
               type="monotone"
               dataKey="both"
-              stroke="#22c55e"
+              stroke="#16a34a"
               name="Both Hands"
               strokeWidth={2}
               dot={{ r: 4 }}

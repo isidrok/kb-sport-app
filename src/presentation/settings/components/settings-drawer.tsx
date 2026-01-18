@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { useSettings } from "../../hooks/use-settings";
 import { SettingsData } from "@/domain/types/settings.types";
 import { Icon } from "@/presentation/components/icon";
+import { CloseButton } from "@/presentation/components/close-button";
+import { ActionButton } from "@/presentation/components/action-button";
+import { ScrollableContainer } from "@/presentation/components/scrollable-container";
 import styles from "./settings-drawer.module.css";
 
 interface SettingsDrawerProps {
@@ -94,16 +97,10 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
       >
         <div className={styles.header}>
           <h2 className={styles.title}>Settings</h2>
-          <button
-            className={styles.closeButton}
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <Icon name="close" />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
-        <div className={styles.content}>
+        <ScrollableContainer className={styles.content}>
           {error && <div className={styles.error}>{error}</div>}
 
           {/* Workout Section */}
@@ -297,17 +294,19 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
               </>
             )}
           </section>
-        </div>
+        </ScrollableContainer>
 
         <div className={styles.footer}>
-          <button onClick={handleReset} className={styles.resetButton}>
-            <Icon name="refresh" />
+          <ActionButton
+            onClick={handleReset}
+            icon="refresh"
+            variant="secondary"
+          >
             Reset to Defaults
-          </button>
-          <button onClick={handleSave} className={styles.saveButton}>
-            <Icon name="check" />
+          </ActionButton>
+          <ActionButton onClick={handleSave} icon="check" variant="primary">
             Save Settings
-          </button>
+          </ActionButton>
         </div>
       </div>
     </div>

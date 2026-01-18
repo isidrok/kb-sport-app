@@ -52,9 +52,11 @@
 /* Hover states for buttons */
 .workoutButton:hover:not(:disabled),
 .container button:hover:not(:disabled) {
-  background: rgba(96, 96, 96, 0.9);
+  background: var(--primary-medium);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px var(--primary-light);
 }
 
 /* Legacy hover for standalone workout button */
@@ -82,31 +84,26 @@
   background: rgba(64, 64, 64, 0.5);
 }
 
-/* Active state for buttons (red background) */
+/* Active state for buttons (green background) */
 .activeButton {
-  background: rgba(
-    220,
-    53,
-    69,
-    0.8
-  ) !important; /* Bootstrap red with transparency */
-  border-color: rgba(220, 53, 69, 0.9) !important;
+  background: var(--primary-color);
+  border-color: var(--primary-hover);
 }
 
 .activeButton:hover:not(:disabled) {
-  background: rgba(220, 53, 69, 0.9) !important;
-  border-color: rgb(220, 53, 69) !important;
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 /* Reset button styling */
 .resetButton {
-  background: rgba(40, 167, 69, 0.8) !important; /* Green for new workout */
-  border-color: rgba(40, 167, 69, 0.9) !important;
+  background: var(--primary-strong);
+  border-color: var(--primary-stronger);
 }
 
 .resetButton:hover:not(:disabled) {
-  background: rgba(40, 167, 69, 0.9) !important;
-  border-color: rgb(40, 167, 69) !important;
+  background: var(--primary-stronger);
+  border-color: var(--primary-rgb);
 }
 
 /* Mobile optimization */

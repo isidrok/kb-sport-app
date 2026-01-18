@@ -72,19 +72,6 @@
   font-weight: 500;
 }
 
-/* Highlight specific stats */
-.stat:first-child .statValue {
-  color: var(--primary-color);
-}
-
-.stat:nth-child(2) .statValue {
-  color: var(--success);
-}
-
-.stat:nth-child(3) .statValue {
-  color: var(--warning);
-}
-
 /* Action buttons */
 .actions {
   display: flex;
@@ -123,31 +110,31 @@
 
 /* Button variants */
 .detailsButton:hover {
-  background: rgba(168, 85, 247, 0.2);
-  border-color: #a855f7;
-  color: #a855f7;
+  background: var(--primary-light);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 .detailsButton.active {
-  background: rgba(168, 85, 247, 0.2);
-  border-color: #a855f7;
-  color: #a855f7;
+  background: var(--primary-light);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 .playButton:hover {
-  background: rgba(96, 165, 250, 0.2);
+  background: var(--primary-light);
   border-color: var(--primary-color);
   color: var(--primary-color);
 }
 
 .downloadButton:hover {
-  background: rgba(34, 197, 94, 0.2);
-  border-color: var(--success);
-  color: var(--success);
+  background: var(--primary-light);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 .deleteButton:hover {
-  background: rgba(248, 113, 113, 0.2);
+  background: var(--danger-bg);
   border-color: var(--danger);
   color: var(--danger);
 }
@@ -223,7 +210,7 @@
 }
 
 .confirmButton:hover {
-  background: rgba(185, 28, 28, 0.2);
+  background: var(--danger-bg);
   border-color: var(--danger);
   color: var(--danger);
 }
@@ -323,5 +310,5 @@
 }
 
 .chartError {
-  color: #ef4444;
+  color: var(--danger);
 }

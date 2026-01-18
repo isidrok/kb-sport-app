@@ -1,5 +1,4 @@
-import { Icon } from "@/presentation/components/icon";
-import styles from "./settings-button.module.css";
+import { FloatingButton } from "@/presentation/components/floating-button";
 
 interface SettingsButtonProps {
   onClick: () => void;
@@ -8,13 +7,11 @@ interface SettingsButtonProps {
 
 export function SettingsButton({ onClick, isDisabled }: SettingsButtonProps) {
   return (
-    <button
-      className={styles.settingsButton}
+    <FloatingButton
+      icon="settings"
       onClick={onClick}
-      data-testid="settings-button"
       disabled={isDisabled}
-    >
-      <Icon name="settings" className={styles.buttonIcon} />
-    </button>
+      testId="settings-button"
+    />
   );
 }

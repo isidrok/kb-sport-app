@@ -56,51 +56,11 @@
   margin: 0;
 }
 
-.closeButton {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  font-size: 1.5rem;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.closeButton:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-}
-
 /* Content area */
 .content {
   flex: 1;
   overflow-y: auto;
   padding: 1.5rem;
-  
-  /* Custom scrollbar */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
-}
-
-.content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.content::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.3);
-  border-radius: 3px;
-}
-
-.content::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 128, 128, 0.5);
 }
 
 /* Summary section */
@@ -179,7 +139,7 @@
 .errorIcon {
   font-size: 3rem;
   margin-bottom: 1rem;
-  color: #ef4444;
+  color: var(--danger);
   opacity: 0.8;
 }
 
