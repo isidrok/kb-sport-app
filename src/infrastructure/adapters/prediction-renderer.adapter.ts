@@ -40,7 +40,7 @@ export class PredictionRendererAdapter {
     ctx: CanvasRenderingContext2D,
     video: HTMLVideoElement,
     width: number,
-    height: number
+    height: number,
   ): void {
     // Flip video horizontally for mirror effect
     ctx.save();
@@ -52,7 +52,7 @@ export class PredictionRendererAdapter {
   private drawBoundingBox(
     ctx: CanvasRenderingContext2D,
     box: [number, number, number, number],
-    width: number
+    width: number,
   ): void {
     const [x1, y1, x2, y2] = box;
 
@@ -69,7 +69,7 @@ export class PredictionRendererAdapter {
     ctx: CanvasRenderingContext2D,
     keypoints: [number, number, number][],
     width: number,
-    confidenceThreshold: number
+    confidenceThreshold: number,
   ): void {
     ctx.fillStyle = "red";
 
@@ -84,5 +84,4 @@ export class PredictionRendererAdapter {
   }
 }
 
-// Export singleton instance
 export const predictionRendererAdapter = new PredictionRendererAdapter();

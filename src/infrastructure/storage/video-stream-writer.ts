@@ -11,7 +11,7 @@ export class VideoStreamWriter {
   async startRecording(
     mediaStream: MediaStream,
     fileWriter: FileSystemWritableFileStream,
-    settings: VideoSettings
+    settings: VideoSettings,
   ): Promise<void> {
     this.totalSize = 0;
     this.fileWriter = fileWriter;
@@ -34,7 +34,7 @@ export class VideoStreamWriter {
   async stopRecording(): Promise<{ sizeInBytes: number }> {
     if (!this.mediaRecorder) {
       throw new Error(
-        "MediaRecorder is not initialized. Call startRecording first."
+        "MediaRecorder is not initialized. Call startRecording first.",
       );
     }
     return new Promise((resolve) => {
@@ -50,5 +50,4 @@ export class VideoStreamWriter {
   }
 }
 
-// Export singleton instance
 export const videoStreamWriter = new VideoStreamWriter();

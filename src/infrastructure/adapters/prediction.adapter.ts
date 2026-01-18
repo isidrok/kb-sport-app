@@ -34,8 +34,7 @@ export class PredictionAdapter {
     const modelURL =
       import.meta.env.BASE_URL + "models/yolov8n-pose_web_model/model.json";
     this.model = await loadGraphModel(modelURL);
-    
-    // Warm up the model with a dummy inference
+
     await this.warmUp();
   }
 
@@ -44,10 +43,9 @@ export class PredictionAdapter {
       throw new Error("Model not initialized. Call initialize() first.");
     }
 
-    // Check if video element has a valid stream - skip processing if not
     if (!video.srcObject) {
       console.warn(
-        "PredictionAdapter: Video element has no valid stream, skipping processing"
+        "PredictionAdapter: Video element has no valid stream, skipping processing",
       );
       return null;
     }
@@ -55,17 +53,13 @@ export class PredictionAdapter {
     let result: PredictionResult;
 
     tidy(() => {
-      // Process video with letterboxing to maintain aspect ratio
       const { processedImage, transformParams } =
         this.processVideoWithLetterboxing(video, this.model!);
-      // Run model inference
       const predictions = this.model!.predict(processedImage) as Tensor3D;
-
-      // Extract best prediction and transform coordinates back to original image space
       const bestPrediction = this.getBestPredictionSync(predictions);
       const scaledPrediction = this.scalePrediction(
         bestPrediction,
-        transformParams
+        transformParams,
       );
 
       result = {
@@ -88,30 +82,21 @@ export class PredictionAdapter {
     }
   }
 
-  /**
-   * Warm up the model by running a dummy inference.
-   * This pre-compiles GPU shaders and allocates memory, making the first real inference faster.
-   */
   private async warmUp(): Promise<void> {
     if (!this.model) {
       throw new Error("Model not initialized");
     }
 
-    // Create a dummy tensor with the expected input shape
     const modelInputShape = this.model.inputs[0].shape!;
     const [, height, width, channels] = modelInputShape; // Skip batch size
-    
-    // Create zeros tensor with model input shape (without batch dimension)
+
     const dummyInput = zeros([height, width, channels]) as Tensor3D;
-    // Add batch dimension
     const batchedInput = dummyInput.expandDims(0) as Tensor3D;
-    
+
     try {
-      // Run inference and immediately dispose the result
       const result = this.model.predict(batchedInput) as Tensor3D;
       result.dispose();
     } finally {
-      // Always dispose the input tensors
       batchedInput.dispose();
       dummyInput.dispose();
     }
@@ -167,7 +152,7 @@ export class PredictionAdapter {
     const keypointsSlice = slice(
       allKeypoints,
       [0, bestPredictionIndex, 0],
-      [1, 1, -1]
+      [1, 1, -1],
     );
     const bestKeypointsTensor = squeeze(keypointsSlice);
 
@@ -186,7 +171,7 @@ export class PredictionAdapter {
       number,
       number,
       number,
-      number
+      number,
     ];
 
     return {
@@ -208,7 +193,7 @@ export class PredictionAdapter {
    */
   private processVideoWithLetterboxing(
     video: HTMLVideoElement,
-    model: GraphModel
+    model: GraphModel,
   ): {
     processedImage: Tensor3D;
     transformParams: PredictionTransformParams;
@@ -275,7 +260,7 @@ export class PredictionAdapter {
    */
   private scalePrediction(
     prediction: Prediction,
-    transformParams: PredictionTransformParams
+    transformParams: PredictionTransformParams,
   ): Prediction {
     const { scale, xOffset, yOffset } = transformParams;
 
@@ -295,7 +280,7 @@ export class PredictionAdapter {
           this.transformCoordinate(x, scale, xOffset),
           this.transformCoordinate(y, scale, yOffset),
           confidence, // Confidence stays the same
-        ]
+        ],
       );
 
     return {
@@ -311,7 +296,7 @@ export class PredictionAdapter {
   private transformCoordinate(
     coord: number,
     scale: number,
-    offset: number
+    offset: number,
   ): number {
     return coord * scale - offset;
   }

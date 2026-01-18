@@ -17,7 +17,7 @@ export function WorkoutPage() {
 
   useFrameProcessing(videoRef, canvasRef);
 
-  const showStatusPopup = status === 'loading' || status === 'error';
+  const showStatusPopup = status === "loading" || status === "error";
 
   return (
     <div className={styles.workoutPage}>
@@ -31,14 +31,14 @@ export function WorkoutPage() {
         />
         <canvas ref={canvasRef} className={styles.canvas} />
       </div>
-      
+
       <WorkoutControls videoRef={videoRef} canvasRef={canvasRef} />
-      
+
       <WorkoutStats />
-      
-      <StatusPopup 
+
+      <StatusPopup
         visible={showStatusPopup}
-        type={status === 'error' ? 'error' : 'loading'}
+        type={status === "error" ? "error" : "loading"}
         message={message}
       />
     </div>

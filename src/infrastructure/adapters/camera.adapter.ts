@@ -7,18 +7,15 @@ export class CameraAdapter {
       throw new Error("Camera already started");
     }
 
-    // Use video element dimensions if set, otherwise fall back to defaults
     const targetWidth = videoElement.width;
     const targetHeight = videoElement.height;
     const { finalWidth, finalHeight } = this.getOptimalDimensions(
       targetWidth,
-      targetHeight
+      targetHeight,
     );
 
-    // Request camera access
     this.stream = await this.requestCameraAccess(finalWidth, finalHeight);
 
-    // Use the provided video element
     this.videoElement = videoElement;
     await this.setupVideoElement();
   }
@@ -37,7 +34,7 @@ export class CameraAdapter {
 
   private getOptimalDimensions(
     width: number,
-    height: number
+    height: number,
   ): { finalWidth: number; finalHeight: number } {
     const isPortrait = window.innerHeight > window.innerWidth;
     return {
@@ -48,7 +45,7 @@ export class CameraAdapter {
 
   private async requestCameraAccess(
     width: number,
-    height: number
+    height: number,
   ): Promise<MediaStream> {
     try {
       return await navigator.mediaDevices.getUserMedia({
