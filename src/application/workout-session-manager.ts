@@ -21,8 +21,7 @@ import {
   predictionRendererAdapter,
   type PredictionRendererAdapter,
 } from "@/infrastructure/adapters/prediction-renderer.adapter";
-import { type IWorkoutRepository } from "@/domain/repositories/workout.repository";
-import { workoutStorageAdapter } from "@/infrastructure/adapters/workout-storage.adapter";
+import { workoutStorageAdapter, type WorkoutStorageAdapter } from "@/infrastructure/adapters/workout-storage.adapter";
 import { eventBus, type EventBus } from "@/infrastructure/event-bus/event-bus";
 import { type Prediction } from "@/domain/types/rep-detection.types";
 import {
@@ -44,7 +43,7 @@ interface WorkoutSessionManagerDependencies {
   predictionAdapter: PredictionAdapter;
   rendererAdapter: PredictionRendererAdapter;
   repDetectionService: RepDetectionService;
-  workoutRepo: IWorkoutRepository;
+  workoutRepo: WorkoutStorageAdapter;
   eventBus: EventBus;
   settingsAdapter: SettingsStorageAdapter;
   beeperAdapter: BeeperAdapter;
@@ -252,7 +251,7 @@ export class WorkoutSessionManager {
       throw new Error("No active workout to stop");
     }
 
-    const settings = this.dependencies.settingsAdapter.getSettings();
+    const settings = this.dependencies.settingsAdapter.loadSettings();
 
     // Double beep on workout stop
     this.audioFeedbackService.playWorkoutStop(settings.audioFeedbackEnabled);
@@ -329,7 +328,7 @@ export class WorkoutSessionManager {
       this.currentWorkout.addRep(rep);
 
       // Check for rep-based audio feedback
-      const settings = this.dependencies.settingsAdapter.getSettings();
+      const settings = this.dependencies.settingsAdapter.loadSettings();
       this.audioFeedbackService.checkRepFeedback(
         this.currentWorkout.getRepCount(),
         {
@@ -348,7 +347,7 @@ export class WorkoutSessionManager {
    * Start the countdown before workout begins (configurable duration)
    */
   private startCountdown(): void {
-    const settings = this.dependencies.settingsAdapter.getSettings();
+    const settings = this.dependencies.settingsAdapter.loadSettings();
 
     this.startCountdownService.startCountdown(
       settings.startCountdownSeconds,
@@ -372,7 +371,7 @@ export class WorkoutSessionManager {
       throw new Error("No workout to start");
     }
 
-    const settings = this.dependencies.settingsAdapter.getSettings();
+    const settings = this.dependencies.settingsAdapter.loadSettings();
 
     // Start the workout entity
     this.currentWorkout.start();
@@ -432,7 +431,7 @@ export class WorkoutSessionManager {
     this.timerInterval = window.setInterval(() => {
       if (this.currentWorkout && this.currentWorkout.isActive()) {
         // Check for time-based audio feedback
-        const settings = this.dependencies.settingsAdapter.getSettings();
+        const settings = this.dependencies.settingsAdapter.loadSettings();
         this.audioFeedbackService.checkTimeFeedback({
           enabled: settings.audioFeedbackEnabled,
           repInterval: settings.audioFeedbackRepInterval,
@@ -494,7 +493,7 @@ export class WorkoutSessionManager {
       return;
     }
 
-    const settings = this.dependencies.settingsAdapter.getSettings();
+    const settings = this.dependencies.settingsAdapter.loadSettings();
 
     this.stopCountdownService.startCountdown(
       seconds,

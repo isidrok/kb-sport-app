@@ -1,6 +1,6 @@
 export interface AutoStopConfig {
-  autoStopTime: string | null; // "mm:ss" format
-  stopCountdownSeconds: number | null; // Countdown before stopping
+  autoStopTime: string | null;
+  stopCountdownSeconds: number | null;
 }
 
 export interface AutoStopCallbacks {
@@ -13,11 +13,8 @@ export interface AutoStopCallbacks {
 export class AutoStopService {
   private autoStopTimer: number | null = null;
 
-  /**
-   * Setup auto-stop timer based on config
-   */
   setup(config: AutoStopConfig, callbacks: AutoStopCallbacks): void {
-    this.clear(); // Clear any existing timer
+    this.clear();
 
     const autoStopMs = config.autoStopTime
       ? this.parseTimeToMs(config.autoStopTime)
@@ -27,11 +24,6 @@ export class AutoStopService {
       return;
     }
 
-    // Calculate when to start the stop countdown
-    // We display the countdown immediately, so we need to subtract (countdown * 1000)
-    // For example: if auto-stop is 15s and countdown is 5s, we start at 10s
-    // At 10s: display "5", at 11s: display "4", ..., at 15s: stop
-    // If countdown is null, just stop immediately at the auto-stop time
     const stopCountdownSeconds = config.stopCountdownSeconds ?? 0;
     const stopCountdownDuration = stopCountdownSeconds * 1000;
     const timeUntilStopCountdown = autoStopMs - stopCountdownDuration;
@@ -43,9 +35,6 @@ export class AutoStopService {
     }
   }
 
-  /**
-   * Clear auto-stop timer
-   */
   clear(): void {
     if (this.autoStopTimer !== null) {
       clearTimeout(this.autoStopTimer);
@@ -53,16 +42,10 @@ export class AutoStopService {
     }
   }
 
-  /**
-   * Check if auto-stop is active
-   */
   isActive(): boolean {
     return this.autoStopTimer !== null;
   }
 
-  /**
-   * Parse time string (mm:ss) to milliseconds
-   */
   private parseTimeToMs(timeString: string): number {
     const parts = timeString.split(":");
     if (parts.length !== 2) {

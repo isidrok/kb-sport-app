@@ -16,12 +16,8 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
   const { settings, updateSettings, resetSettings, loadSettings } =
     useSettings();
   const previouslyOpen = useRef(false);
-
-  // Single state object from domain settings
   const [formData, setFormData] = useState<SettingsData>(settings.toData());
-  const [error, setError] = useState<string | null>(null);
 
-  // Sync form data when settings change
   useEffect(() => {
     setFormData(settings.toData());
   }, [settings]);
@@ -35,8 +31,6 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
 
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
-
-      // Reload settings when drawer opens to ensure fresh data
       if (!previouslyOpen.current) {
         loadSettings();
       }
@@ -50,34 +44,13 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
     };
   }, [isOpen, onClose, loadSettings]);
 
-  const updateField = <K extends keyof SettingsData>(
-    field: K,
-    value: SettingsData[K]
-  ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
   const handleSave = () => {
-    try {
-      setError(null);
-      updateSettings(formData);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save settings");
-    }
+    updateSettings(formData);
+    onClose();
   };
 
   const handleReset = () => {
-    if (confirm("Are you sure you want to reset all settings to defaults?")) {
-      try {
-        resetSettings();
-        setError(null);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to reset settings"
-        );
-      }
-    }
+      resetSettings();
   };
 
   if (!isOpen) {
@@ -85,11 +58,7 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
   }
 
   return (
-    <div
-      className={styles.backdrop}
-      data-testid="drawer-backdrop"
-      onClick={onClose}
-    >
+    <div className={styles.backdrop} onClick={onClose}>
       <div
         role="dialog"
         className={styles.drawer}
@@ -101,14 +70,13 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
         </div>
 
         <ScrollableContainer className={styles.content}>
-          {error && <div className={styles.error}>{error}</div>}
-
           {/* Workout Section */}
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>
               <Icon name="timer" className={styles.sectionIcon} />
               Workout
             </h3>
+
             <div className={styles.field}>
               <label htmlFor="startCountdown" className={styles.label}>
                 Start Countdown (seconds)
@@ -117,34 +85,40 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                 id="startCountdown"
                 type="number"
                 min="0"
+                max="30"
                 value={formData.startCountdownSeconds}
-                onChange={(e) =>
-                  updateField(
-                    "startCountdownSeconds",
-                    parseInt((e.target as HTMLInputElement).value, 10) || 0
-                  )
+                onInput={(e) =>
+                  setFormData({
+                    ...formData,
+                    startCountdownSeconds: Number(
+                      (e.target as HTMLInputElement).value
+                    ),
+                  })
                 }
                 className={styles.input}
               />
             </div>
+
             <div className={styles.field}>
-              <label htmlFor="autoStopTime" className={styles.label}>
-                Auto-stop workout at (mm:ss)
+              <label htmlFor="autoStop" className={styles.label}>
+                Auto-stop at (mm:ss)
               </label>
               <input
-                id="autoStopTime"
+                id="autoStop"
                 type="text"
-                placeholder="mm:ss"
+                placeholder="mm:ss (optional)"
                 value={formData.autoStopWorkoutTime || ""}
-                onChange={(e) =>
-                  updateField(
-                    "autoStopWorkoutTime",
-                    (e.target as HTMLInputElement).value || null
-                  )
+                onInput={(e) =>
+                  setFormData({
+                    ...formData,
+                    autoStopWorkoutTime:
+                      (e.target as HTMLInputElement).value || null,
+                  })
                 }
                 className={styles.input}
               />
             </div>
+
             <div className={styles.field}>
               <label htmlFor="stopCountdown" className={styles.label}>
                 Stop countdown (seconds)
@@ -155,38 +129,35 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                 min="0"
                 placeholder="No countdown"
                 value={formData.stopWorkoutCountdown ?? ""}
-                onChange={(e) => {
-                  const val = (e.target as HTMLInputElement).value;
-                  updateField(
-                    "stopWorkoutCountdown",
-                    val ? parseInt(val, 10) : null
-                  );
-                }}
+                onInput={(e) =>
+                  setFormData({
+                    ...formData,
+                    stopWorkoutCountdown:
+                      (e.target as HTMLInputElement).value
+                        ? Number((e.target as HTMLInputElement).value)
+                        : null,
+                  })
+                }
                 className={styles.input}
               />
             </div>
+
             <div className={styles.field}>
               <label htmlFor="fps" className={styles.label}>
-                Frame Rate (FPS)
+                FPS (1-60)
               </label>
               <input
                 id="fps"
                 type="number"
                 min="1"
                 max="60"
-                placeholder="12"
-                value={formData.fps || ""}
-                onChange={(e) => {
-                  const val = (e.target as HTMLInputElement).value;
-                  updateField("fps", val ? parseInt(val, 10) : 0);
-                }}
-                onBlur={(e) => {
-                  // Apply default if field is empty or invalid on blur
-                  const val = (e.target as HTMLInputElement).value;
-                  if (!val || parseInt(val, 10) < 1) {
-                    updateField("fps", 12);
-                  }
-                }}
+                value={formData.fps}
+                onInput={(e) =>
+                  setFormData({
+                    ...formData,
+                    fps: Number((e.target as HTMLInputElement).value),
+                  })
+                }
                 className={styles.input}
               />
             </div>
@@ -198,34 +169,36 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
               <Icon name="videocam" className={styles.sectionIcon} />
               Recording
             </h3>
+
             <div className={styles.field}>
               <label className={styles.checkboxLabel}>
                 <input
                   type="checkbox"
                   checked={formData.recordVideo}
                   onChange={(e) =>
-                    updateField(
-                      "recordVideo",
-                      (e.target as HTMLInputElement).checked
-                    )
+                    setFormData({
+                      ...formData,
+                      recordVideo: (e.target as HTMLInputElement).checked,
+                    })
                   }
                   className={styles.checkbox}
                 />
                 <span>Record Video</span>
               </label>
             </div>
+
             <div className={styles.field}>
               <label htmlFor="videoFormat" className={styles.label}>
-                Video Format
+                Format
               </label>
               <select
                 id="videoFormat"
                 value={formData.videoFormat}
                 onChange={(e) =>
-                  updateField(
-                    "videoFormat",
-                    (e.target as HTMLSelectElement).value
-                  )
+                  setFormData({
+                    ...formData,
+                    videoFormat: (e.target as HTMLSelectElement).value,
+                  })
                 }
                 className={styles.input}
               >
@@ -233,18 +206,19 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                 <option value="mp4">MP4</option>
               </select>
             </div>
+
             <div className={styles.field}>
               <label htmlFor="videoQuality" className={styles.label}>
-                Video Quality
+                Quality
               </label>
               <select
                 id="videoQuality"
                 value={formData.videoQuality}
                 onChange={(e) =>
-                  updateField(
-                    "videoQuality",
-                    (e.target as HTMLSelectElement).value
-                  )
+                  setFormData({
+                    ...formData,
+                    videoQuality: (e.target as HTMLSelectElement).value,
+                  })
                 }
                 className={styles.input}
               >
@@ -262,20 +236,22 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
               <Icon name="volume_up" className={styles.sectionIcon} />
               Audio Feedback
             </h3>
+
             <div className={styles.field}>
               <label className={styles.checkboxLabel}>
                 <input
                   type="checkbox"
                   checked={formData.audioFeedbackEnabled}
                   onChange={(e) =>
-                    updateField(
-                      "audioFeedbackEnabled",
-                      (e.target as HTMLInputElement).checked
-                    )
+                    setFormData({
+                      ...formData,
+                      audioFeedbackEnabled: (e.target as HTMLInputElement)
+                        .checked,
+                    })
                   }
                   className={styles.checkbox}
                 />
-                <span>Enable Audio Feedback</span>
+                <span>Enable Audio</span>
               </label>
             </div>
 
@@ -289,17 +265,21 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                     id="repInterval"
                     type="number"
                     min="1"
-                    value={formData.audioFeedbackRepInterval || ""}
-                    onChange={(e) => {
-                      const val = (e.target as HTMLInputElement).value;
-                      updateField(
-                        "audioFeedbackRepInterval",
-                        val ? parseInt(val, 10) : null
-                      );
-                    }}
+                    placeholder="Optional"
+                    value={formData.audioFeedbackRepInterval ?? ""}
+                    onInput={(e) =>
+                      setFormData({
+                        ...formData,
+                        audioFeedbackRepInterval:
+                          (e.target as HTMLInputElement).value
+                            ? Number((e.target as HTMLInputElement).value)
+                            : null,
+                      })
+                    }
                     className={styles.input}
                   />
                 </div>
+
                 <div className={styles.field}>
                   <label htmlFor="timeInterval" className={styles.label}>
                     Beep every (mm:ss)
@@ -307,13 +287,14 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                   <input
                     id="timeInterval"
                     type="text"
-                    placeholder="mm:ss"
+                    placeholder="mm:ss (optional)"
                     value={formData.audioFeedbackTimeInterval || ""}
-                    onChange={(e) =>
-                      updateField(
-                        "audioFeedbackTimeInterval",
-                        (e.target as HTMLInputElement).value || null
-                      )
+                    onInput={(e) =>
+                      setFormData({
+                        ...formData,
+                        audioFeedbackTimeInterval:
+                          (e.target as HTMLInputElement).value || null,
+                      })
                     }
                     className={styles.input}
                   />
@@ -329,10 +310,10 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
             icon="refresh"
             variant="secondary"
           >
-            Reset to Defaults
+            Reset
           </ActionButton>
           <ActionButton onClick={handleSave} icon="check" variant="primary">
-            Save Settings
+            Save
           </ActionButton>
         </div>
       </div>

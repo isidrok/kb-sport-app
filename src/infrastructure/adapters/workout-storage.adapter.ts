@@ -1,4 +1,3 @@
-import { IWorkoutRepository } from "@/domain/repositories/workout.repository";
 import { WorkoutEntity } from "@/domain/entities/workout-entity";
 import {
   WorkoutSummary,
@@ -23,7 +22,7 @@ interface RecordingState {
  * - File system operations via OPFS
  * - Metadata serialization
  */
-export class WorkoutStorageAdapter implements IWorkoutRepository {
+export class WorkoutStorageAdapter {
   private rootPromise: Promise<FileSystemDirectoryHandle> | null = null;
   private activeRecordings: Map<string, RecordingState> = new Map();
 

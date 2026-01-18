@@ -13,13 +13,13 @@ A workout tracking application that uses computer vision to automatically detect
 ✅ Stand upright for best detection  
 ✅ Start your workout!
 
-## 🎯 What It Tracks
+## What It Tracks
 
 This app counts **any overhead lift** where your wrist goes above your nose. The more upright your position, the better the detection works.
 
 **The detection is simple**: when your wrist crosses above your nose for a set threshold, it counts as a rep.
 
-## 🔒 Privacy First
+## Privacy First
 
 - **Everything runs in your browser** - no data is sent to any server
 - **All recordings stay on your device** - stored locally in [OPFS](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system)
@@ -43,6 +43,7 @@ This app counts **any overhead lift** where your wrist goes above your nose. The
 ### Requirements
 
 - **Webcam** access
+- **Single person only** - only works with one person in camera frame
 - **Stable position** - the more upright you are, the better detection works
 
 ### Getting Started
@@ -58,6 +59,7 @@ This app counts **any overhead lift** where your wrist goes above your nose. The
 
    - Stand upright in front of your camera
    - Ensure your head and arms are fully visible in the frame
+   - **Make sure you're alone in the camera frame** - detection only works with one person
    - **The more upright you stand, the better the detection works**
 
 2. **Test First** (Recommended):
@@ -122,6 +124,7 @@ Click the **Settings** button (gear icon) to customize:
 ### Tips for Best Results
 
 - **Test First**: Set beeps to every 1 rep and test the detection before your actual workout
+- **One Person Only**: Make sure only one person is visible in the camera frame
 - **Stand Upright**: The more vertical your position, the better the detection accuracy
 - **Slow Device?**: Lower the FPS in Settings (try 6-8 FPS) to improve performance
 - **Lighting**: Ensure good lighting for better pose detection

@@ -81,6 +81,14 @@ export class BeeperAdapter {
   }
 
   /**
+   * Time interval beep - 200ms at 1000Hz for time-based intervals
+   * Higher pitch and longer duration than rep beep
+   */
+  async timeIntervalBeep(): Promise<void> {
+    return this.enqueueBeep(() => this.beep(200, 1000));
+  }
+
+  /**
    * Enqueue a beep to prevent overlapping sounds
    */
   private async enqueueBeep(beepFn: () => Promise<void>): Promise<void> {

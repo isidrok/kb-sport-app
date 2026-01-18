@@ -1,4 +1,4 @@
-import { type IWorkoutRepository } from "@/domain/repositories/workout.repository";
+import { type WorkoutStorageAdapter } from "@/infrastructure/adapters/workout-storage.adapter";
 
 export interface VideoRecordingConfig {
   enabled: boolean;
@@ -12,7 +12,7 @@ export interface VideoRecordingConfig {
 export class VideoRecordingService {
   private isRecording: boolean = false;
 
-  constructor(private workoutRepo: IWorkoutRepository) {}
+  constructor(private workoutStorageAdapter: WorkoutStorageAdapter) {}
 
   /**
    * Start video recording
@@ -27,7 +27,7 @@ export class VideoRecordingService {
     }
 
     try {
-      await this.workoutRepo.startRecording(
+      await this.workoutStorageAdapter.startRecording(
         workoutId,
         mediaStream,
         config.format,
@@ -51,7 +51,7 @@ export class VideoRecordingService {
     }
 
     try {
-      const { sizeInBytes } = await this.workoutRepo.stopRecording(workoutId);
+      const { sizeInBytes } = await this.workoutStorageAdapter.stopRecording(workoutId);
       this.isRecording = false;
       return sizeInBytes;
     } catch (error) {
