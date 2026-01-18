@@ -1,7 +1,7 @@
 import { Icon } from "./icon";
 import styles from "./info-button.module.css";
 
-const REPO_URL = "https://github.com/isidrok/kb-sport-app/README.md";
+const REPO_URL = "https://github.com/isidrok/kb-sport-app";
 
 export function InfoButton() {
   const handleClick = () => {
