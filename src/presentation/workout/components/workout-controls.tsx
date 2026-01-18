@@ -7,6 +7,7 @@ import { WorkoutButton } from "./workout-button";
 import { PreviewButton } from "./preview-button";
 import { WorkoutHistoryButton } from "../../workout-history/components/workout-history-button";
 import { WorkoutHistoryDrawer } from "../../workout-history/components/workout-history-drawer";
+import { StatusPopup } from "../../components/status-popup";
 import styles from "./workout-controls.module.css";
 
 interface WorkoutControlsProps {
@@ -16,14 +17,8 @@ interface WorkoutControlsProps {
 
 export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
   const { sessionState, countdown } = useWorkoutState();
-  const {
-    startPreview,
-    stopPreview,
-    startWorkout,
-    stopWorkout,
-    reset,
-    isStarting,
-  } = useWorkoutActions();
+  const { startPreview, stopPreview, startWorkout, stopWorkout, isStarting } =
+    useWorkoutActions();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const isIdle = sessionState === SessionState.Idle;
@@ -32,8 +27,15 @@ export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
   const isRunning = sessionState === SessionState.Running;
   const isFinished = sessionState === SessionState.Finished;
 
-  const canStartWorkout = isPoseDetecting;
+  // Can start workout from Idle, PoseDetecting, or Finished
+  const canStartWorkout = isIdle || isPoseDetecting || isFinished;
+
+  // Can stop workout only when Running
   const canStopWorkout = isRunning;
+
+  // Preview and History available when NOT in active workout (countdown or running)
+  const isInActiveWorkout = isCountingDown || isRunning;
+  const canUsePreviewAndHistory = !isInActiveWorkout;
 
   const handleStartPreview = async () => {
     if (videoRef.current && canvasRef.current) {
@@ -46,15 +48,13 @@ export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
   };
 
   const handleStartWorkout = async () => {
-    await startWorkout();
+    if (videoRef.current && canvasRef.current) {
+      await startWorkout(videoRef.current, canvasRef.current);
+    }
   };
 
   const handleStopWorkout = () => {
     stopWorkout();
-  };
-
-  const handleReset = () => {
-    reset();
   };
 
   const handleOpenHistory = () => {
@@ -68,39 +68,29 @@ export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
   return (
     <>
       <div className={styles.container}>
-        {isCountingDown && countdown && (
-          <div className={styles.countdownOverlay}>
-            <div className={styles.countdownNumber}>{countdown}</div>
-          </div>
-        )}
-
-        {(isIdle || isPoseDetecting) && (
-          <PreviewButton
-            isPreviewActive={isPoseDetecting}
-            isDisabled={false}
-            onStartPreview={handleStartPreview}
-            onStopPreview={handleStopPreview}
-          />
-        )}
-
-        {!isFinished && (
-          <WorkoutButton
-            canStart={canStartWorkout}
-            canStop={canStopWorkout}
-            isStarting={isStarting || isCountingDown}
-            onStartWorkout={handleStartWorkout}
-            onStopWorkout={handleStopWorkout}
-          />
-        )}
-
-        {isFinished && (
-          <button className={styles.resetButton} onClick={handleReset}>
-            New Workout
-          </button>
-        )}
-
-        <WorkoutHistoryButton onClick={handleOpenHistory} />
+        <PreviewButton
+          isPreviewActive={isPoseDetecting}
+          isDisabled={!canUsePreviewAndHistory}
+          onStartPreview={handleStartPreview}
+          onStopPreview={handleStopPreview}
+        />
+        <WorkoutButton
+          canStart={canStartWorkout}
+          canStop={canStopWorkout}
+          isStarting={isStarting || isCountingDown}
+          onStartWorkout={handleStartWorkout}
+          onStopWorkout={handleStopWorkout}
+        />
+        <WorkoutHistoryButton
+          onClick={handleOpenHistory}
+          isDisabled={!canUsePreviewAndHistory}
+        />
       </div>
+      <StatusPopup
+        visible={isCountingDown && countdown !== undefined}
+        icon="timer"
+        message={countdown?.toString()}
+      />
       <WorkoutHistoryDrawer
         isOpen={isHistoryOpen}
         onClose={handleCloseHistory}

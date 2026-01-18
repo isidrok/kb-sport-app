@@ -13,6 +13,7 @@ export function WorkoutButton(props: WorkoutButtonProps) {
   const buttonText = props.canStart ? 'Start' : 'Stop'
   const iconName = props.canStart ? 'play_arrow' : 'stop'
   const buttonClass = props.canStop ? styles.activeButton : ''
+  const isDisabled = props.isStarting || (!props.canStart && !props.canStop)
   
   const handleClick = () => {
     if (props.canStart) {
@@ -25,7 +26,7 @@ export function WorkoutButton(props: WorkoutButtonProps) {
   return (
     <button 
       className={buttonClass}
-      disabled={props.isStarting} 
+      disabled={isDisabled} 
       onClick={handleClick}
       aria-label={buttonText}
     >

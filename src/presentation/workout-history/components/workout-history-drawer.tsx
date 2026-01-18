@@ -36,7 +36,7 @@ export function WorkoutHistoryDrawer({
 
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
-      
+
       // Only load workouts if drawer wasn't previously open
       if (!previouslyOpen.current) {
         loadWorkouts();

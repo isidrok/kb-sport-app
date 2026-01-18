@@ -21,10 +21,8 @@ import {
   predictionRendererAdapter,
   type PredictionRendererAdapter,
 } from "@/infrastructure/adapters/prediction-renderer.adapter";
-import {
-  workoutStorageService,
-  type WorkoutStorageService,
-} from "@/application/services/workout-storage.service";
+import { type IWorkoutRepository } from "@/domain/repositories/workout.repository";
+import { workoutStorageAdapter } from "@/infrastructure/adapters/workout-storage.adapter";
 import { eventBus, type EventBus } from "@/infrastructure/event-bus/event-bus";
 import { type Prediction } from "@/domain/types/rep-detection.types";
 
@@ -33,7 +31,7 @@ interface WorkoutSessionManagerDependencies {
   predictionAdapter: PredictionAdapter;
   rendererAdapter: PredictionRendererAdapter;
   repDetectionService: RepDetectionService;
-  workoutStorageService: WorkoutStorageService;
+  workoutRepo: IWorkoutRepository;
   eventBus: EventBus;
 }
 
@@ -64,45 +62,59 @@ export class WorkoutSessionManager {
   constructor(private dependencies: WorkoutSessionManagerDependencies) {}
 
   /**
+   * Start camera and frame processing
+   * Helper method used by both preview and direct workout start
+   */
+  private async startCamera(
+    videoElement: HTMLVideoElement,
+    canvasElement: HTMLCanvasElement
+  ): Promise<void> {
+    this.videoElement = videoElement;
+    this.canvasElement = canvasElement;
+
+    // Setup video and canvas dimensions
+    const videoRect = videoElement.getBoundingClientRect();
+    const canvasRect = canvasElement.getBoundingClientRect();
+
+    videoElement.width = videoRect.width;
+    videoElement.height = videoRect.height;
+    canvasElement.width = canvasRect.width;
+    canvasElement.height = canvasRect.height;
+
+    // Start camera
+    await this.dependencies.cameraAdapter.start(videoElement);
+
+    // Start frame processing loop
+    this.startFrameProcessing();
+
+    // Emit ready event
+    this.dependencies.eventBus.publish(
+      new CameraAccessEvent({
+        status: "ready",
+        message: "Camera started successfully",
+      })
+    );
+  }
+
+  /**
    * Start preview mode - camera + pose detection without rep counting
    */
   async startPreview(
     videoElement: HTMLVideoElement,
     canvasElement: HTMLCanvasElement
   ): Promise<void> {
-    if (this.state !== SessionState.Idle) {
+    if (
+      this.state !== SessionState.Idle &&
+      this.state !== SessionState.Finished
+    ) {
       throw new Error(`Cannot start preview from state: ${this.state}`);
     }
 
-    this.videoElement = videoElement;
-    this.canvasElement = canvasElement;
-
     try {
-      // Setup video and canvas dimensions
-      const videoRect = videoElement.getBoundingClientRect();
-      const canvasRect = canvasElement.getBoundingClientRect();
-
-      videoElement.width = videoRect.width;
-      videoElement.height = videoRect.height;
-      canvasElement.width = canvasRect.width;
-      canvasElement.height = canvasRect.height;
-
-      // Start camera
-      await this.dependencies.cameraAdapter.start(videoElement);
-
-      // Start frame processing loop (pose detection + rendering only)
-      this.startFrameProcessing();
+      await this.startCamera(videoElement, canvasElement);
 
       // Transition to PoseDetecting state
       this.setState(SessionState.PoseDetecting);
-
-      // Emit ready event
-      this.dependencies.eventBus.publish(
-        new CameraAccessEvent({
-          status: "ready",
-          message: "Camera started successfully",
-        })
-      );
     } catch (error) {
       // Cleanup on error
       this.cleanup();
@@ -133,22 +145,57 @@ export class WorkoutSessionManager {
   }
 
   /**
-   * Start workout - transition from preview to countdown to running
+   * Start workout - can start from Idle (direct) or PoseDetecting (after preview)
    */
-  async startWorkout(): Promise<void> {
-    if (this.state !== SessionState.PoseDetecting) {
-      throw new Error(
-        `Cannot start workout from state: ${this.state}. Start preview first.`
-      );
+  async startWorkout(
+    videoElement?: HTMLVideoElement,
+    canvasElement?: HTMLCanvasElement
+  ): Promise<void> {
+    // Allow starting from Idle or PoseDetecting
+    if (
+      this.state !== SessionState.Idle &&
+      this.state !== SessionState.PoseDetecting &&
+      this.state !== SessionState.Finished
+    ) {
+      throw new Error(`Cannot start workout from state: ${this.state}`);
     }
 
-    // Create new workout
-    this.currentWorkout = new WorkoutEntity(
-      `workout_${new Date().toISOString()}`
-    );
+    try {
+      // If starting from Idle or Finished, need to start camera first
+      if (
+        this.state === SessionState.Idle ||
+        this.state === SessionState.Finished
+      ) {
+        if (!videoElement || !canvasElement) {
+          throw new Error(
+            "Video and canvas elements required when starting from Idle"
+          );
+        }
+        await this.startCamera(videoElement, canvasElement);
+      }
 
-    // Start countdown (3, 2, 1)
-    this.startCountdown();
+      // Create new workout
+      this.currentWorkout = new WorkoutEntity(
+        `workout_${new Date().toISOString()}`
+      );
+
+      // Start countdown (3, 2, 1)
+      this.startCountdown();
+    } catch (error) {
+      // Cleanup on error
+      this.cleanup();
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to start workout";
+      this.dependencies.eventBus.publish(
+        new CameraAccessEvent({
+          status: "error",
+          message: errorMessage,
+        })
+      );
+
+      throw error;
+    }
   }
 
   /**
@@ -166,13 +213,21 @@ export class WorkoutSessionManager {
     // Stop the workout entity
     this.currentWorkout.stop();
 
-    // Stop timer
+    // Stop timer and frame processing
     this.stopTimer();
+    this.stopFrameProcessing();
+
+    // Stop camera
+    this.dependencies.cameraAdapter.stop();
 
     // Stop video recording and save
     try {
-      await this.dependencies.workoutStorageService.stopRecording(
-        this.currentWorkout
+      const { sizeInBytes } = await this.dependencies.workoutRepo.stopRecording(
+        this.currentWorkout.id
+      );
+      await this.dependencies.workoutRepo.saveWorkout(
+        this.currentWorkout,
+        sizeInBytes
       );
     } catch (error) {
       console.error("Failed to save workout:", error);
@@ -181,24 +236,16 @@ export class WorkoutSessionManager {
     // Reset rep detection state
     this.dependencies.repDetectionService.reset();
 
+    // Clear canvas
+    if (this.canvasElement) {
+      this.dependencies.rendererAdapter.clear(this.canvasElement);
+    }
+
     // Transition to Finished state
     this.setState(SessionState.Finished);
 
     // Emit final stats
     this.emitWorkoutUpdate();
-  }
-
-  /**
-   * Reset from Finished back to Idle
-   */
-  reset(): void {
-    if (this.state !== SessionState.Finished) {
-      throw new Error(`Cannot reset from state: ${this.state}`);
-    }
-
-    this.cleanup();
-    this.currentWorkout = null;
-    this.setState(SessionState.Idle);
   }
 
   /**
@@ -293,8 +340,8 @@ export class WorkoutSessionManager {
     const mediaStream = this.dependencies.cameraAdapter.getStream();
     if (mediaStream && this.currentWorkout) {
       try {
-        await this.dependencies.workoutStorageService.startVideoRecording(
-          this.currentWorkout,
+        await this.dependencies.workoutRepo.startRecording(
+          this.currentWorkout.id,
           mediaStream
         );
       } catch (error) {
@@ -438,6 +485,6 @@ export const workoutSessionManager = new WorkoutSessionManager({
   predictionAdapter,
   rendererAdapter: predictionRendererAdapter,
   repDetectionService,
-  workoutStorageService,
+  workoutRepo: workoutStorageAdapter,
   eventBus,
 });

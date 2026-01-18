@@ -35,7 +35,7 @@ export function WorkoutPage() {
 
       <StatusPopup
         visible={showStatusPopup}
-        type={status === "error" ? "error" : "loading"}
+        icon={status === "error" ? "error" : "hourglass_empty"}
         message={message}
       />
     </div>
