@@ -1,5 +1,4 @@
-import styles from './workout-controls.module.css'
-import { Icon } from '@/presentation/components/icon'
+import { FloatingButton } from '@/presentation/components/floating-button'
 
 export interface PreviewButtonProps {
   isPreviewActive: boolean
@@ -11,7 +10,6 @@ export interface PreviewButtonProps {
 export function PreviewButton(props: PreviewButtonProps) {
   const buttonText = props.isPreviewActive ? 'Stop Preview' : 'Start Preview'
   const iconName = props.isPreviewActive ? 'visibility_off' : 'visibility'
-  const buttonClass = props.isPreviewActive ? styles.activeButton : ''
   
   const handleClick = () => {
     if (props.isPreviewActive) {
@@ -22,8 +20,12 @@ export function PreviewButton(props: PreviewButtonProps) {
   }
   
   return (
-    <button className={buttonClass} onClick={handleClick} disabled={props.isDisabled} aria-label={buttonText}>
-      <Icon name={iconName} className={styles.buttonIcon} />
-    </button>
+    <FloatingButton
+      icon={iconName}
+      onClick={handleClick}
+      disabled={props.isDisabled}
+      ariaLabel={buttonText}
+      active={props.isPreviewActive}
+    />
   )
 }

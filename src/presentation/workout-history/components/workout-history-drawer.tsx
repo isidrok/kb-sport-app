@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import { WorkoutCard } from "./workout-card";
 import { useWorkoutHistory } from "../../hooks/use-workout-history";
+import { useStorageStatus } from "../../hooks/use-storage-status";
 import { Icon } from "@/presentation/components/icon";
 import { CloseButton } from "@/presentation/components/close-button";
 import { ScrollableContainer } from "@/presentation/components/scrollable-container";
@@ -30,6 +31,7 @@ export function WorkoutHistoryDrawer({
     confirmDelete,
     cancelDelete,
   } = useWorkoutHistory();
+  const { isOPFSSupported, isChecked } = useStorageStatus();
 
   const previouslyOpen = useRef(false);
 
@@ -76,6 +78,15 @@ export function WorkoutHistoryDrawer({
           <h2 className={styles.title}>Workout History</h2>
           <CloseButton onClick={onClose} />
         </div>
+
+        {isChecked && !isOPFSSupported && (
+          <div className={styles.warningBanner}>
+            <Icon name="warning" />
+            <span>
+              Access to storage is not supported in this browser. Try updating to the latest version of Chrome, Edge, or Safari.
+            </span>
+          </div>
+        )}
 
         <ScrollableContainer className={styles.content}>
           {isLoading ? (

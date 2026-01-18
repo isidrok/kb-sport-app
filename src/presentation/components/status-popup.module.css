@@ -19,15 +19,42 @@
   text-align: center;
   min-width: 200px;
 
-  /* Flexbox layout for icon and text */
+  /* Flexbox layout for content and close button */
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-direction: row;
+  align-items: flex-start;
   gap: 0.75rem;
 
   /* Animation */
   animation: slideIn 0.3s ease-out;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Kind variants */
+.statusPopup.info {
+  border-color: rgba(33, 150, 243, 0.6);
+}
+
+.statusPopup.warning {
+  border-color: rgba(255, 193, 7, 0.6);
+}
+
+.statusPopup.error {
+  border-color: rgba(244, 67, 54, 0.6);
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.closeButtonWrapper {
+  flex-shrink: 0;
+  margin-top: -0.25rem;
+  margin-right: -0.25rem;
 }
 
 .iconContainer {
@@ -36,13 +63,20 @@
   justify-content: center;
 }
 
-.loadingIcon {
+.icon {
   animation: pulse 1.5s ease-in-out infinite;
-  color: var(--primary-color);
 }
 
-.errorIcon {
-  color: var(--danger);
+.info .icon {
+  color: rgba(33, 150, 243, 0.9);
+}
+
+.warning .icon {
+  color: rgba(255, 193, 7, 0.9);
+}
+
+.error .icon {
+  color: rgba(244, 67, 54, 0.9);
 }
 
 .message {

@@ -53,6 +53,26 @@
   margin: 0;
 }
 
+/* Warning banner */
+.warningBanner {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.warningBanner > :global(.material-symbols-outlined) {
+  color: rgba(255, 193, 7, 0.9);
+  flex-shrink: 0;
+}
+
 /* Content area */
 .content {
   flex: 1;

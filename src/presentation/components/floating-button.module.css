@@ -36,10 +36,24 @@
   background: rgba(64, 64, 64, 0.5);
 }
 
+/* Active state (e.g., when running/recording) */
+.floatingButton.active {
+  background: var(--primary-color);
+  border-color: var(--primary-hover);
+}
+
+.floatingButton.active:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
 .floatingButtonIcon {
   font-size: 2rem;
   display: inline-block;
   width: auto;
+  width: 32px;
+  height: 32px;
+  overflow: hidden;
 }
 
 /* Mobile styles */

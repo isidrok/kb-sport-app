@@ -106,11 +106,13 @@ export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
         visible={isStartCountdown && countdown !== undefined}
         icon="timer"
         message={`Starting in ${countdown}`}
+        kind="info"
       />
       <StatusPopup
         visible={isStopCountdown && countdown !== undefined}
         icon="timer"
         message={`Stopping in ${countdown}`}
+        kind="info"
       />
       <WorkoutHistoryDrawer
         isOpen={isHistoryOpen}

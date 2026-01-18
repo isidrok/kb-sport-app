@@ -1,4 +1,5 @@
 import { type WorkoutStorageAdapter } from "@/infrastructure/adapters/workout-storage.adapter";
+import { type StorageCheckService } from "./storage-check.service";
 
 export interface VideoRecordingConfig {
   enabled: boolean;
@@ -12,7 +13,10 @@ export interface VideoRecordingConfig {
 export class VideoRecordingService {
   private isRecording: boolean = false;
 
-  constructor(private workoutStorageAdapter: WorkoutStorageAdapter) {}
+  constructor(
+    private workoutStorageAdapter: WorkoutStorageAdapter,
+    private storageCheckService: StorageCheckService
+  ) {}
 
   /**
    * Start video recording
@@ -23,6 +27,17 @@ export class VideoRecordingService {
     config: VideoRecordingConfig
   ): Promise<boolean> {
     if (!config.enabled) {
+      return false;
+    }
+
+    // Check storage availability
+    const storage = this.storageCheckService.getStorageStatus();
+    if (!storage || !storage.isOPFSSupported) {
+      console.info("Skipping video recording: OPFS not supported");
+      return false;
+    }
+    if (!storage.hasEnoughSpace) {
+      console.info(`Skipping video recording: insufficient storage (${storage.spaceInMB} MB available, 200 MB needed)`);
       return false;
     }
 

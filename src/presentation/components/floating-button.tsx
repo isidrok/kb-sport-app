@@ -7,6 +7,8 @@ interface FloatingButtonProps {
   disabled?: boolean;
   testId?: string;
   className?: string;
+  ariaLabel?: string;
+  active?: boolean;
 }
 
 export function FloatingButton({
@@ -15,13 +17,18 @@ export function FloatingButton({
   disabled = false,
   testId,
   className,
+  ariaLabel,
+  active = false,
 }: FloatingButtonProps) {
+  const buttonClass = `${styles.floatingButton} ${active ? styles.active : ""} ${className || ""}`;
+  
   return (
     <button
-      className={`${styles.floatingButton} ${className || ""}`}
+      className={buttonClass}
       onClick={onClick}
       disabled={disabled}
       data-testid={testId}
+      aria-label={ariaLabel}
     >
       <Icon name={icon} className={styles.floatingButtonIcon} />
     </button>

@@ -1,5 +1,4 @@
-import styles from './workout-controls.module.css'
-import { Icon } from '@/presentation/components/icon'
+import { FloatingButton } from '@/presentation/components/floating-button'
 
 export interface WorkoutButtonProps {
   canStart: boolean
@@ -12,7 +11,6 @@ export interface WorkoutButtonProps {
 export function WorkoutButton(props: WorkoutButtonProps) {
   const buttonText = props.canStart ? 'Start' : 'Stop'
   const iconName = props.canStart ? 'play_arrow' : 'stop'
-  const buttonClass = props.canStop ? styles.activeButton : ''
   const isDisabled = props.isStarting || (!props.canStart && !props.canStop)
   
   const handleClick = () => {
@@ -24,13 +22,12 @@ export function WorkoutButton(props: WorkoutButtonProps) {
   }
   
   return (
-    <button 
-      className={buttonClass}
-      disabled={isDisabled} 
+    <FloatingButton
+      icon={iconName}
       onClick={handleClick}
-      aria-label={buttonText}
-    >
-      <Icon name={iconName} className={styles.buttonIcon} />
-    </button>
+      disabled={isDisabled}
+      ariaLabel={buttonText}
+      active={props.canStop}
+    />
   )
 }

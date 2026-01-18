@@ -37,6 +37,7 @@ import { AudioFeedbackService } from "./services/audio-feedback.service";
 import { VideoRecordingService } from "./services/video-recording.service";
 import { FrameProcessingService } from "./services/frame-processing.service";
 import { AutoStopService } from "./services/auto-stop.service";
+import { storageCheckService, type StorageCheckService } from "./services/storage-check.service";
 
 interface WorkoutSessionManagerDependencies {
   cameraAdapter: CameraAdapter;
@@ -47,6 +48,7 @@ interface WorkoutSessionManagerDependencies {
   eventBus: EventBus;
   settingsAdapter: SettingsStorageAdapter;
   beeperAdapter: BeeperAdapter;
+  storageCheckService: StorageCheckService;
 }
 
 /**
@@ -83,7 +85,8 @@ export class WorkoutSessionManager {
       dependencies.beeperAdapter
     );
     this.videoRecordingService = new VideoRecordingService(
-      dependencies.workoutRepo
+      dependencies.workoutRepo,
+      dependencies.storageCheckService
     );
     this.frameProcessingService = new FrameProcessingService(
       dependencies.predictionAdapter,
@@ -554,4 +557,5 @@ export const workoutSessionManager = new WorkoutSessionManager({
   eventBus,
   settingsAdapter: settingsStorageAdapter,
   beeperAdapter,
+  storageCheckService,
 });
