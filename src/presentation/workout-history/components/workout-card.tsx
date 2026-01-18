@@ -1,14 +1,19 @@
-import { WorkoutSummary } from "@/domain/types/workout-storage.types";
+import { WorkoutSummary, WorkoutMetadata } from "@/domain/types/workout-storage.types";
 import { formatDateTime } from "@/presentation/format/date";
 import { Icon } from "@/presentation/components/icon";
+import { RepsPerMinuteChart } from "./reps-per-minute-chart";
 import styles from "./workout-card.module.css";
 
 interface WorkoutCardProps {
   workout: WorkoutSummary;
   onView: (workoutId: string) => void;
+  onToggleDetails: (workoutId: string) => void;
   onDownload: (workoutId: string) => void;
   onDelete: (workoutId: string) => void;
   isDeleting?: boolean;
+  isShowingDetails?: boolean;
+  metadata?: WorkoutMetadata | null;
+  isLoadingMetadata?: boolean;
   onConfirmDelete: (workoutId: string) => void;
   onCancelDelete: () => void;
 }
@@ -16,9 +21,13 @@ interface WorkoutCardProps {
 export function WorkoutCard({
   workout,
   onView,
+  onToggleDetails,
   onDownload,
   onDelete,
   isDeleting = false,
+  isShowingDetails = false,
+  metadata = null,
+  isLoadingMetadata = false,
   onConfirmDelete,
   onCancelDelete,
 }: WorkoutCardProps) {
@@ -99,11 +108,20 @@ export function WorkoutCard({
 
       <div className={styles.actions}>
         <button
-          className={`${styles.actionButton} ${styles.viewButton}`}
+          className={`${styles.actionButton} ${styles.detailsButton} ${
+            isShowingDetails ? styles.active : ""
+          }`}
+          onClick={() => onToggleDetails(workout.workoutId)}
+        >
+          <Icon name="bar_chart" className={styles.buttonIcon} />
+          Details
+        </button>
+        <button
+          className={`${styles.actionButton} ${styles.playButton}`}
           onClick={() => onView(workout.workoutId)}
         >
           <Icon name="play_arrow" className={styles.buttonIcon} />
-          View
+          Play
         </button>
         <button
           className={`${styles.actionButton} ${styles.downloadButton}`}
@@ -120,6 +138,24 @@ export function WorkoutCard({
           Delete
         </button>
       </div>
+
+      {isShowingDetails && (
+        <div className={styles.chartSection}>
+          {isLoadingMetadata ? (
+            <div className={styles.chartLoading}>
+              <Icon name="hourglass_empty" />
+              <span>Loading chart data...</span>
+            </div>
+          ) : metadata ? (
+            <RepsPerMinuteChart metadata={metadata} />
+          ) : (
+            <div className={styles.chartError}>
+              <Icon name="error" />
+              <span>Failed to load chart data</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

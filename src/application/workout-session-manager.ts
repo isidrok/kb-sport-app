@@ -313,8 +313,12 @@ export class WorkoutSessionManager {
       confidenceThreshold: 0.5,
     });
 
-    // Only detect reps when in Running state
-    if (this.state === SessionState.Running && this.currentWorkout) {
+    // Detect reps when Running or in StopCountdown
+    if (
+      (this.state === SessionState.Running ||
+        this.state === SessionState.StopCountdown) &&
+      this.currentWorkout
+    ) {
       this.detectRep(bestPrediction);
     }
   }
@@ -405,7 +409,6 @@ export class WorkoutSessionManager {
           await this.dependencies.workoutRepo.startRecording(
             this.currentWorkout.id,
             mediaStream,
-            true, // Always record audio
             settings.videoFormat,
             settings.videoQuality
           );

@@ -5,7 +5,7 @@
   backdrop-filter: blur(20px);
   border: 1px solid rgba(128, 128, 128, 0.6);
   border-radius: 50px;
-  
+
   /* Button styling */
   padding: 1rem 2rem;
   font-size: 1.1rem;
@@ -13,11 +13,11 @@
   color: white;
   cursor: pointer;
   transition: all 0.3s ease;
-  
+
   /* Touch-friendly sizing */
   min-width: 120px;
   min-height: 56px;
-  
+
   /* Center the icon */
   display: flex;
   align-items: center;
@@ -57,9 +57,9 @@
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
     min-height: 48px;
-    min-width: 100px;
+    min-width: 64px;
   }
-  
+
   .buttonIcon {
     font-size: 1.5rem;
   }

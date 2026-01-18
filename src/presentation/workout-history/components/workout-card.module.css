@@ -122,7 +122,19 @@
 }
 
 /* Button variants */
-.viewButton:hover {
+.detailsButton:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+  color: #a855f7;
+}
+
+.detailsButton.active {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+  color: #a855f7;
+}
+
+.playButton:hover {
   background: rgba(96, 165, 250, 0.2);
   border-color: var(--primary-color);
   color: var(--primary-color);
@@ -278,4 +290,38 @@
     right: 0.75rem;
     font-size: 0.7rem;
   }
+}
+
+/* Chart section */
+.chartSection {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.2);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+.chartLoading,
+.chartError {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.chartError {
+  color: #ef4444;
 }

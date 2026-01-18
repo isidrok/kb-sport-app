@@ -1,13 +1,18 @@
 import { useState, useCallback } from "preact/hooks";
 import { workoutStorageAdapter } from "@/infrastructure/adapters/workout-storage.adapter";
-import { WorkoutSummary } from "@/domain/types/workout-storage.types";
+import { WorkoutSummary, WorkoutMetadata } from "@/domain/types/workout-storage.types";
 
 export interface UseWorkoutHistoryReturn {
   workouts: WorkoutSummary[];
   isLoading: boolean;
   deletingWorkoutId: string | null;
+  viewingWorkoutId: string | null;
+  workoutMetadata: WorkoutMetadata | null;
+  isLoadingMetadata: boolean;
   loadWorkouts: () => Promise<void>;
   viewWorkout: (workoutId: string) => Promise<void>;
+  viewWorkoutDetails: (workoutId: string) => Promise<void>;
+  closeWorkoutDetails: () => void;
   downloadWorkout: (workoutId: string) => Promise<void>;
   deleteWorkout: (workoutId: string) => void;
   confirmDelete: (workoutId: string) => Promise<void>;
@@ -20,6 +25,11 @@ export function useWorkoutHistory(): UseWorkoutHistoryReturn {
   const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(
     null
   );
+  const [viewingWorkoutId, setViewingWorkoutId] = useState<string | null>(null);
+  const [workoutMetadata, setWorkoutMetadata] = useState<WorkoutMetadata | null>(
+    null
+  );
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
 
   const loadWorkouts = useCallback(async () => {
     setIsLoading(true);
@@ -32,6 +42,33 @@ export function useWorkoutHistory(): UseWorkoutHistoryReturn {
     const videoBlob = await workoutStorageAdapter.getWorkoutVideo(workoutId);
     const videoUrl = URL.createObjectURL(videoBlob);
     window.open(videoUrl, "_blank");
+  }
+
+  async function viewWorkoutDetails(workoutId: string) {
+    // Toggle: if clicking the same workout, close it
+    if (viewingWorkoutId === workoutId) {
+      setViewingWorkoutId(null);
+      setWorkoutMetadata(null);
+      return;
+    }
+
+    // Load new workout details
+    setIsLoadingMetadata(true);
+    setViewingWorkoutId(workoutId);
+    try {
+      const metadata = await workoutStorageAdapter.getWorkoutMetadata(workoutId);
+      setWorkoutMetadata(metadata);
+    } catch (error) {
+      console.error("Failed to load workout metadata:", error);
+      setWorkoutMetadata(null);
+    } finally {
+      setIsLoadingMetadata(false);
+    }
+  }
+
+  function closeWorkoutDetails() {
+    setViewingWorkoutId(null);
+    setWorkoutMetadata(null);
   }
 
   async function downloadWorkout(workoutId: string) {
@@ -80,8 +117,13 @@ export function useWorkoutHistory(): UseWorkoutHistoryReturn {
     workouts,
     isLoading,
     deletingWorkoutId,
+    viewingWorkoutId,
+    workoutMetadata,
+    isLoadingMetadata,
     loadWorkouts,
     viewWorkout,
+    viewWorkoutDetails,
+    closeWorkoutDetails,
     downloadWorkout,
     deleteWorkout,
     confirmDelete,

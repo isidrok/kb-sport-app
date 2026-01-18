@@ -131,7 +131,6 @@ export class WorkoutStorageAdapter implements IWorkoutRepository {
   async startRecording(
     workoutId: string,
     mediaStream: MediaStream,
-    recordAudio: boolean = true,
     videoFormat: string = "webm",
     videoQuality: string = "medium"
   ): Promise<void> {
@@ -143,16 +142,6 @@ export class WorkoutStorageAdapter implements IWorkoutRepository {
     await this.createWorkoutDirectory(workoutId);
     const fileWriter = await this.getVideoFileWriter(workoutId, videoFormat);
 
-    // Clone stream and optionally remove audio tracks
-    let streamToRecord = mediaStream;
-    if (!recordAudio) {
-      streamToRecord = mediaStream.clone();
-      streamToRecord.getAudioTracks().forEach((track) => {
-        streamToRecord.removeTrack(track);
-      });
-    }
-
-    // Convert user-friendly settings to technical values
     const mimeTypeMap: Record<string, string> = {
       webm: "video/webm;codecs=vp8",
       mp4: "video/mp4",
@@ -169,7 +158,7 @@ export class WorkoutStorageAdapter implements IWorkoutRepository {
     const videoBitrate = bitrateMap[videoQuality] || 2500000;
 
     // Setup MediaRecorder with configurable settings
-    const mediaRecorder = new MediaRecorder(streamToRecord, {
+    const mediaRecorder = new MediaRecorder(mediaStream, {
       mimeType: mimeType,
       videoBitsPerSecond: videoBitrate,
     });
@@ -280,6 +269,10 @@ export class WorkoutStorageAdapter implements IWorkoutRepository {
       const fileHandle = await workoutDir.getFileHandle("video.mp4");
       return await fileHandle.getFile();
     }
+  }
+
+  async getWorkoutMetadata(workoutId: string): Promise<WorkoutMetadata | null> {
+    return this.readMetadata(workoutId);
   }
 
   async deleteWorkout(workoutId: string): Promise<void> {

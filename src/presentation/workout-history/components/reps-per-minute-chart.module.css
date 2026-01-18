@@ -1,0 +1,42 @@
+.chartContainer {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.chartTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+.emptyChart {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.emptyChart p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .chartContainer {
+    padding: 1rem;
+  }
+
+  .chartTitle {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+  }
+
+  .emptyChart {
+    padding: 2rem 1rem;
+  }
+}

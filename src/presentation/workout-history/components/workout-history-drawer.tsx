@@ -18,9 +18,13 @@ export function WorkoutHistoryDrawer({
     isLoading,
     loadWorkouts,
     viewWorkout,
+    viewWorkoutDetails,
     downloadWorkout,
     deleteWorkout,
     deletingWorkoutId,
+    viewingWorkoutId,
+    workoutMetadata,
+    isLoadingMetadata,
     confirmDelete,
     cancelDelete,
   } = useWorkoutHistory();
@@ -105,9 +109,19 @@ export function WorkoutHistoryDrawer({
                   key={workout.workoutId}
                   workout={workout}
                   onView={viewWorkout}
+                  onToggleDetails={viewWorkoutDetails}
                   onDownload={downloadWorkout}
                   onDelete={deleteWorkout}
                   isDeleting={deletingWorkoutId === workout.workoutId}
+                  isShowingDetails={viewingWorkoutId === workout.workoutId}
+                  metadata={
+                    viewingWorkoutId === workout.workoutId
+                      ? workoutMetadata
+                      : null
+                  }
+                  isLoadingMetadata={
+                    viewingWorkoutId === workout.workoutId && isLoadingMetadata
+                  }
                   onConfirmDelete={confirmDelete}
                   onCancelDelete={cancelDelete}
                 />
