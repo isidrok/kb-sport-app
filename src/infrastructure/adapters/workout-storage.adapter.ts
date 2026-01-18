@@ -3,6 +3,7 @@ import {
   WorkoutSummary,
   WorkoutMetadata,
 } from "@/domain/types/workout-storage.types";
+import { getOriginPrivateDirectory } from 'native-file-system-adapter';
 
 /**
  * State for an active video recording
@@ -30,7 +31,7 @@ export class WorkoutStorageAdapter {
 
   private async getRoot(): Promise<FileSystemDirectoryHandle> {
     if (!this.rootPromise) {
-      this.rootPromise = navigator.storage.getDirectory();
+      this.rootPromise = getOriginPrivateDirectory() as unknown as Promise<FileSystemDirectoryHandle>;
     }
     return this.rootPromise;
   }
@@ -190,16 +191,15 @@ export class WorkoutStorageAdapter {
     }
 
     return new Promise((resolve) => {
-      recordingState.mediaRecorder.onstop = async () => {
+      // Fix race condition with Safari polyfill
+      setTimeout(async () => {
         await recordingState.fileWriter.close();
         this.activeRecordings.delete(workoutId);
         resolve({ sizeInBytes: recordingState.totalSize });
-      };
+      }, 50);
       recordingState.mediaRecorder.stop();
     });
   }
-
-  // ===== Repository Operations =====
 
   async saveWorkout(workout: WorkoutEntity, videoSize: number): Promise<void> {
     const stats = workout.getStats();
