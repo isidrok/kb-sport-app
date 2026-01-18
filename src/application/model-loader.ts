@@ -26,7 +26,7 @@ export class ModelLoaderService {
       this.dependencies.eventBus.publish(
         new ModelLoadingEvent({
           status: "loading",
-          message: "Loading AI model...",
+          message: "Loading ML model...",
         })
       );
 

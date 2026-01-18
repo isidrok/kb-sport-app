@@ -6,7 +6,7 @@ const MINIMUM_LOADING_TIME = 800 // ms
 
 export function useModelLoading() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
-  const [message, setMessage] = useState<string | undefined>('Loading AI model...')
+  const [message, setMessage] = useState<string | undefined>('Loading ML model...')
   const loadingStartTime = useRef<number>(Date.now())
   const { subscribe } = useEventBus(ModelLoadingEvent)
 
