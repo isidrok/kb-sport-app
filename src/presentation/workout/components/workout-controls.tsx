@@ -2,7 +2,7 @@ import { RefObject } from "preact";
 import { useState } from "preact/hooks";
 import { useWorkoutState } from "../hooks/use-workout-state";
 import { useWorkoutActions } from "../hooks/use-workout-actions";
-import { usePreview } from "../../hooks/use-preview";
+import { SessionState } from "@/domain/events/session-events";
 import { WorkoutButton } from "./workout-button";
 import { PreviewButton } from "./preview-button";
 import { WorkoutHistoryButton } from "../../workout-history/components/workout-history-button";
@@ -15,27 +15,46 @@ interface WorkoutControlsProps {
 }
 
 export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
-  const stats = useWorkoutState();
-  const { startWorkout, stopWorkout, isStarting } = useWorkoutActions();
-  const { isPreviewActive, startPreview, stopPreview } = usePreview(
-    videoRef,
-    canvasRef
-  );
+  const { sessionState, countdown } = useWorkoutState();
+  const {
+    startPreview,
+    stopPreview,
+    startWorkout,
+    stopWorkout,
+    reset,
+    isStarting,
+  } = useWorkoutActions();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  const canStart = !stats.isActive;
-  const canStop = stats.isActive;
+  const isIdle = sessionState === SessionState.Idle;
+  const isPoseDetecting = sessionState === SessionState.PoseDetecting;
+  const isCountingDown = sessionState === SessionState.StartCountdown;
+  const isRunning = sessionState === SessionState.Running;
+  const isFinished = sessionState === SessionState.Finished;
 
-  const handleStartWorkout = async () => {
+  const canStartWorkout = isPoseDetecting;
+  const canStopWorkout = isRunning;
+
+  const handleStartPreview = async () => {
     if (videoRef.current && canvasRef.current) {
-      await startWorkout(videoRef.current, canvasRef.current);
+      await startPreview(videoRef.current, canvasRef.current);
     }
   };
 
+  const handleStopPreview = () => {
+    stopPreview();
+  };
+
+  const handleStartWorkout = async () => {
+    await startWorkout();
+  };
+
   const handleStopWorkout = () => {
-    if (canvasRef.current) {
-      stopWorkout(canvasRef.current);
-    }
+    stopWorkout();
+  };
+
+  const handleReset = () => {
+    reset();
   };
 
   const handleOpenHistory = () => {
@@ -49,20 +68,38 @@ export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
   return (
     <>
       <div className={styles.container}>
-        <WorkoutButton
-          canStart={canStart}
-          canStop={canStop}
-          isStarting={isStarting}
-          onStartWorkout={handleStartWorkout}
-          onStopWorkout={handleStopWorkout}
-        />
+        {isCountingDown && countdown && (
+          <div className={styles.countdownOverlay}>
+            <div className={styles.countdownNumber}>{countdown}</div>
+          </div>
+        )}
+
+        {(isIdle || isPoseDetecting) && (
+          <PreviewButton
+            isPreviewActive={isPoseDetecting}
+            isDisabled={false}
+            onStartPreview={handleStartPreview}
+            onStopPreview={handleStopPreview}
+          />
+        )}
+
+        {!isFinished && (
+          <WorkoutButton
+            canStart={canStartWorkout}
+            canStop={canStopWorkout}
+            isStarting={isStarting || isCountingDown}
+            onStartWorkout={handleStartWorkout}
+            onStopWorkout={handleStopWorkout}
+          />
+        )}
+
+        {isFinished && (
+          <button className={styles.resetButton} onClick={handleReset}>
+            New Workout
+          </button>
+        )}
+
         <WorkoutHistoryButton onClick={handleOpenHistory} />
-        <PreviewButton
-          isPreviewActive={isPreviewActive}
-          isDisabled={canStop}
-          onStartPreview={startPreview}
-          onStopPreview={stopPreview}
-        />
       </div>
       <WorkoutHistoryDrawer
         isOpen={isHistoryOpen}

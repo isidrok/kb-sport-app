@@ -1,6 +1,9 @@
 import { useState, useEffect } from "preact/hooks";
 import { useEventBus } from "../../hooks/use-event-bus";
-import { workoutService } from "@/application/services/workout.service";
+import {
+  SessionStateChangedEvent,
+  SessionState,
+} from "@/domain/events/session-events";
 import { WorkoutUpdatedEvent } from "@/domain/events/workout-events";
 import {
   WorkoutStatus,
@@ -20,19 +23,45 @@ const DEFAULT_STATS: WorkoutStats = {
   reps: [],
 };
 
-export function useWorkoutState() {
-  const [stats, setStats] = useState(
-    () => workoutService.getWorkoutStatus() || DEFAULT_STATS
+export interface WorkoutSessionState {
+  sessionState: SessionState;
+  countdown?: number;
+  stats: WorkoutStats;
+}
+
+export function useWorkoutState(): WorkoutSessionState {
+  const [sessionState, setSessionState] = useState<SessionState>(
+    SessionState.Idle
   );
-  const { subscribe } = useEventBus(WorkoutUpdatedEvent);
+  const [countdown, setCountdown] = useState<number | undefined>(undefined);
+  const [stats, setStats] = useState<WorkoutStats>(DEFAULT_STATS);
+
+  const { subscribe: subscribeSessionState } = useEventBus(
+    SessionStateChangedEvent
+  );
+  const { subscribe: subscribeWorkoutUpdate } =
+    useEventBus(WorkoutUpdatedEvent);
 
   useEffect(() => {
-    const unsubscribe = subscribe((event) => {
+    const unsubscribe = subscribeSessionState((event) => {
+      setSessionState(event.data.state);
+      setCountdown(event.data.countdown);
+    });
+
+    return unsubscribe;
+  }, [subscribeSessionState]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeWorkoutUpdate((event) => {
       setStats(event.data.stats);
     });
 
     return unsubscribe;
-  }, [subscribe]);
+  }, [subscribeWorkoutUpdate]);
 
-  return stats;
+  return {
+    sessionState,
+    countdown,
+    stats,
+  };
 }

@@ -1,9 +1,17 @@
 import { useWorkoutState } from '../hooks/use-workout-state'
+import { SessionState } from '@/domain/events/session-events'
 import { WorkoutStatsCard } from './workout-stats-card'
 import styles from './workout-stats.module.css'
 
 export function WorkoutStats() {
-  const stats = useWorkoutState()
+  const { sessionState, stats } = useWorkoutState()
+
+  // Only show stats during Running and Finished states
+  const showStats = sessionState === SessionState.Running || sessionState === SessionState.Finished
+
+  if (!showStats) {
+    return null
+  }
 
   return (
     <div className={styles.overlay}>

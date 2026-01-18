@@ -93,6 +93,55 @@
   border-color: rgb(220, 53, 69) !important;
 }
 
+/* Countdown overlay */
+.countdownOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  pointer-events: none;
+}
+
+.countdownNumber {
+  font-size: 10rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  animation: countdownPulse 1s ease-in-out;
+}
+
+@keyframes countdownPulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Reset button styling */
+.resetButton {
+  background: rgba(40, 167, 69, 0.8) !important; /* Green for new workout */
+  border-color: rgba(40, 167, 69, 0.9) !important;
+}
+
+.resetButton:hover:not(:disabled) {
+  background: rgba(40, 167, 69, 0.9) !important;
+  border-color: rgb(40, 167, 69) !important;
+}
+
 /* Mobile optimization */
 @media (max-width: 768px) {
   .container {
@@ -117,5 +166,9 @@
   /* Legacy mobile support for standalone workout button */
   .workoutButton {
     bottom: 1.5rem;
+  }
+
+  .countdownNumber {
+    font-size: 6rem;
   }
 }

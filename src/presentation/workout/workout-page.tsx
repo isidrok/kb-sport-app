@@ -4,7 +4,6 @@ import { WorkoutControls } from "./components/workout-controls";
 import { WorkoutStats } from "./components/workout-stats";
 import { StatusPopup } from "../components/status-popup";
 import { useModelLoading } from "../hooks/use-model-loading";
-import { useFrameProcessing } from "./hooks/use-frame-processing";
 
 /**
  * Main workout page with camera feed, pose detection, and real-time statistics.
@@ -14,8 +13,6 @@ export function WorkoutPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { status, message } = useModelLoading();
-
-  useFrameProcessing(videoRef, canvasRef);
 
   const showStatusPopup = status === "loading" || status === "error";
 

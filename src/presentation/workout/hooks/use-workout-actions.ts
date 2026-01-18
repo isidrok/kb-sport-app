@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'preact/hooks'
 import { useEventBus } from '../../hooks/use-event-bus'
-import { workoutService } from '@/application/services/workout.service'
+import { workoutSessionManager } from '@/application/workout-session-manager'
 import { CameraAccessEvent } from '@/application/events/camera-access-event'
 
 export function useWorkoutActions() {
@@ -20,27 +20,54 @@ export function useWorkoutActions() {
     return unsubscribe
   }, [subscribe])
 
-  const startWorkout = async (videoElement: HTMLVideoElement, canvasElement: HTMLCanvasElement) => {
+  const startPreview = async (videoElement: HTMLVideoElement, canvasElement: HTMLCanvasElement) => {
     setIsStarting(true)
     try {
-      await workoutService.startWorkout(videoElement, canvasElement)
+      await workoutSessionManager.startPreview(videoElement, canvasElement)
     } finally {
       setIsStarting(false)
     }
   }
 
-  const stopWorkout = async (canvasElement?: HTMLCanvasElement) => {
+  const stopPreview = () => {
     try {
-      await workoutService.stopWorkout(canvasElement)
+      workoutSessionManager.stopPreview()
+    } catch (error) {
+      console.error('Error stopping preview:', error)
+    }
+  }
+
+  const startWorkout = async () => {
+    try {
+      await workoutSessionManager.startWorkout()
+    } catch (error) {
+      console.error('Error starting workout:', error)
+    }
+  }
+
+  const stopWorkout = async () => {
+    try {
+      await workoutSessionManager.stopWorkout()
     } catch (error) {
       console.error('Error stopping workout:', error)
     }
   }
 
+  const reset = () => {
+    try {
+      workoutSessionManager.reset()
+    } catch (error) {
+      console.error('Error resetting:', error)
+    }
+  }
+
   return {
     isStarting,
+    startPreview,
+    stopPreview,
     startWorkout,
     stopWorkout,
+    reset,
     cameraError
   }
 }

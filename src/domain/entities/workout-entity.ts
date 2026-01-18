@@ -1,5 +1,4 @@
 import { type Rep } from "../types/rep-detection.types";
-import { WorkoutUpdatedEvent } from "../events/workout-events";
 
 export enum WorkoutStatus {
   IDLE = "idle",
@@ -66,40 +65,28 @@ export class WorkoutEntity {
     return this._reps.length;
   }
 
-  addRep(rep: Rep): WorkoutUpdatedEvent {
+  addRep(rep: Rep): void {
     this._reps.push(rep);
-    return new WorkoutUpdatedEvent({
-      workoutId: this._id,
-      stats: this.getStats(),
-    });
   }
 
   isActive(): boolean {
     return this._status === WorkoutStatus.ACTIVE;
   }
 
-  start(): WorkoutUpdatedEvent {
+  start(): void {
     if (this._status === WorkoutStatus.ACTIVE) {
       throw new Error("Cannot start workout that is already active");
     }
     this._status = WorkoutStatus.ACTIVE;
     this._startTime = new Date();
-    return new WorkoutUpdatedEvent({
-      workoutId: this._id,
-      stats: this.getStats(),
-    });
   }
 
-  stop(): WorkoutUpdatedEvent {
+  stop(): void {
     if (this._status !== WorkoutStatus.ACTIVE) {
       throw new Error("Cannot stop workout that is not active");
     }
     this._status = WorkoutStatus.STOPPED;
     this._endTime = new Date();
-    return new WorkoutUpdatedEvent({
-      workoutId: this._id,
-      stats: this.getStats(),
-    });
   }
 
   private getElapsedTime(): number {
