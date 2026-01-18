@@ -1,0 +1,49 @@
+.infoButton {
+  position: fixed;
+  top: 1.5rem;
+  left: 1.5rem;
+  width: 48px;
+  height: 48px;
+  background: rgba(64, 64, 64, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(128, 128, 128, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  color: white;
+}
+
+.infoButton:hover {
+  background: var(--primary-medium);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 32px var(--primary-light);
+}
+
+.infoButton:active {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.icon {
+  font-size: 1.5rem;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .infoButton {
+    top: 1rem;
+    left: 1rem;
+    width: 40px;
+    height: 40px;
+  }
+
+  .icon {
+    font-size: 1.25rem;
+  }
+}

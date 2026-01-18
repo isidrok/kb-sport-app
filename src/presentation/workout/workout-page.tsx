@@ -3,6 +3,7 @@ import styles from "./workout-page.module.css";
 import { WorkoutControls } from "./components/workout-controls";
 import { WorkoutStats } from "./components/workout-stats";
 import { StatusPopup } from "../components/status-popup";
+import { InfoButton } from "../components/info-button";
 import { useModelLoading } from "../hooks/use-model-loading";
 
 /**
@@ -18,6 +19,8 @@ export function WorkoutPage() {
 
   return (
     <div className={styles.workoutPage}>
+      <InfoButton />
+      
       <div className={styles.videoContainer}>
         <video
           ref={videoRef}

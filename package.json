@@ -1,7 +1,7 @@
 {
   "name": "kb-sport-app",
   "version": "1.0.0",
-  "description": "",
+  "description": "workout tracking application for kb sport",
   "main": "dist/index.js",
   "scripts": {
     "dev": "vite --host",
@@ -13,8 +13,8 @@
     "test:coverage": "vitest --coverage"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Isidro Torregrosa Torralba",
+  "license": "MIT",
   "packageManager": "pnpm@10.7.1",
   "dependencies": {
     "@preact/preset-vite": "^2.10.1",
