@@ -10,7 +10,7 @@ export interface SettingsData {
   // Workout Section
   startCountdownSeconds: number;
   autoStopWorkoutTime: string | null; // format: "mm:ss"
-  stopWorkoutCountdown: number; // seconds
+  stopWorkoutCountdown: number | null; // seconds, null = no countdown
 
   // Recording Section
   recordVideo: boolean;
@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   // Workout
   startCountdownSeconds: 5,
   autoStopWorkoutTime: null,
-  stopWorkoutCountdown: 5,
+  stopWorkoutCountdown: null,
 
   // Recording
   recordVideo: true,

@@ -1,7 +1,4 @@
-import {
-  SettingsData,
-  DEFAULT_SETTINGS,
-} from "../types/settings.types";
+import { SettingsData, DEFAULT_SETTINGS } from "../types/settings.types";
 
 /**
  * Core business entity representing application settings.
@@ -39,7 +36,7 @@ export class SettingsEntity {
     return this.data.autoStopWorkoutTime;
   }
 
-  get stopWorkoutCountdown(): number {
+  get stopWorkoutCountdown(): number | null {
     return this.data.stopWorkoutCountdown;
   }
 
@@ -72,7 +69,9 @@ export class SettingsEntity {
 
   setVideoQuality(quality: string): void {
     const validQualities = ["low", "medium", "high", "veryhigh"];
-    this.data.videoQuality = validQualities.includes(quality) ? quality : "medium";
+    this.data.videoQuality = validQualities.includes(quality)
+      ? quality
+      : "medium";
   }
 
   setAutoStopWorkoutTime(time: string | null): void {
@@ -82,8 +81,9 @@ export class SettingsEntity {
     this.data.autoStopWorkoutTime = time && time !== "" ? time : null;
   }
 
-  setStopWorkoutCountdown(seconds: number): void {
-    this.data.stopWorkoutCountdown = Math.max(0, seconds);
+  setStopWorkoutCountdown(seconds: number | null): void {
+    this.data.stopWorkoutCountdown =
+      seconds !== null && seconds > 0 ? seconds : null;
   }
 
   setAudioFeedbackEnabled(enabled: boolean): void {
@@ -156,7 +156,10 @@ export class SettingsEntity {
       this.data.startCountdownSeconds = DEFAULT_SETTINGS.startCountdownSeconds;
     }
 
-    if (this.data.stopWorkoutCountdown < 0) {
+    if (
+      this.data.stopWorkoutCountdown !== null &&
+      this.data.stopWorkoutCountdown < 0
+    ) {
       this.data.stopWorkoutCountdown = DEFAULT_SETTINGS.stopWorkoutCountdown;
     }
 

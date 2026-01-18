@@ -153,15 +153,21 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                 id="stopCountdown"
                 type="number"
                 min="0"
-                value={formData.stopWorkoutCountdown}
-                onChange={(e) =>
+                placeholder="No countdown"
+                value={formData.stopWorkoutCountdown ?? ""}
+                onChange={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
                   updateField(
                     "stopWorkoutCountdown",
-                    parseInt((e.target as HTMLInputElement).value, 10) || 0
-                  )
-                }
+                    val ? parseInt(val, 10) : null
+                  );
+                }}
                 className={styles.input}
               />
+              <div className={styles.note}>
+                <Icon name="info" className={styles.noteIcon} />
+                Leave empty to stop immediately with no countdown
+              </div>
             </div>
           </section>
 

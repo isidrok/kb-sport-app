@@ -546,12 +546,14 @@ export class WorkoutSessionManager {
     // We display the countdown immediately, so we need to subtract (countdown * 1000)
     // For example: if auto-stop is 15s and countdown is 5s, we start at 10s
     // At 10s: display "5", at 11s: display "4", ..., at 15s: stop
-    const stopCountdownDuration = settings.stopWorkoutCountdown * 1000;
+    // If countdown is null, just stop immediately at the auto-stop time
+    const stopCountdownSeconds = settings.stopWorkoutCountdown ?? 0;
+    const stopCountdownDuration = stopCountdownSeconds * 1000;
     const timeUntilStopCountdown = autoStopMs - stopCountdownDuration;
 
     if (timeUntilStopCountdown > 0) {
       this.autoStopTimer = window.setTimeout(() => {
-        this.startStopCountdown(settings.stopWorkoutCountdown);
+        this.startStopCountdown(stopCountdownSeconds);
       }, timeUntilStopCountdown);
     }
   }
