@@ -7,6 +7,8 @@ import { WorkoutButton } from "./workout-button";
 import { PreviewButton } from "./preview-button";
 import { WorkoutHistoryButton } from "../../workout-history/components/workout-history-button";
 import { WorkoutHistoryDrawer } from "../../workout-history/components/workout-history-drawer";
+import { SettingsButton } from "../../settings/components/settings-button";
+import { SettingsDrawer } from "../../settings/components/settings-drawer";
 import { StatusPopup } from "../../components/status-popup";
 import styles from "./workout-controls.module.css";
 
@@ -20,21 +22,23 @@ export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
   const { startPreview, stopPreview, startWorkout, stopWorkout, isStarting } =
     useWorkoutActions();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const isIdle = sessionState === SessionState.Idle;
   const isPoseDetecting = sessionState === SessionState.PoseDetecting;
-  const isCountingDown = sessionState === SessionState.StartCountdown;
+  const isStartCountdown = sessionState === SessionState.StartCountdown;
   const isRunning = sessionState === SessionState.Running;
+  const isStopCountdown = sessionState === SessionState.StopCountdown;
   const isFinished = sessionState === SessionState.Finished;
 
   // Can start workout from Idle, PoseDetecting, or Finished
   const canStartWorkout = isIdle || isPoseDetecting || isFinished;
 
-  // Can stop workout only when Running
-  const canStopWorkout = isRunning;
+  // Can stop workout when Running or during StopCountdown
+  const canStopWorkout = isRunning || isStopCountdown;
 
   // Preview and History available when NOT in active workout (countdown or running)
-  const isInActiveWorkout = isCountingDown || isRunning;
+  const isInActiveWorkout = isStartCountdown || isRunning || isStopCountdown;
   const canUsePreviewAndHistory = !isInActiveWorkout;
 
   const handleStartPreview = async () => {
@@ -65,6 +69,14 @@ export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
     setIsHistoryOpen(false);
   };
 
+  const handleOpenSettings = () => {
+    setIsSettingsOpen(true);
+  };
+
+  const handleCloseSettings = () => {
+    setIsSettingsOpen(false);
+  };
+
   return (
     <>
       <div className={styles.container}>
@@ -77,7 +89,7 @@ export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
         <WorkoutButton
           canStart={canStartWorkout}
           canStop={canStopWorkout}
-          isStarting={isStarting || isCountingDown}
+          isStarting={isStarting || isStartCountdown}
           onStartWorkout={handleStartWorkout}
           onStopWorkout={handleStopWorkout}
         />
@@ -85,16 +97,26 @@ export function WorkoutControls({ videoRef, canvasRef }: WorkoutControlsProps) {
           onClick={handleOpenHistory}
           isDisabled={!canUsePreviewAndHistory}
         />
+        <SettingsButton
+          onClick={handleOpenSettings}
+          isDisabled={!canUsePreviewAndHistory}
+        />
       </div>
       <StatusPopup
-        visible={isCountingDown && countdown !== undefined}
+        visible={isStartCountdown && countdown !== undefined}
         icon="timer"
-        message={countdown?.toString()}
+        message={`Starting in ${countdown}`}
+      />
+      <StatusPopup
+        visible={isStopCountdown && countdown !== undefined}
+        icon="timer"
+        message={`Stopping in ${countdown}`}
       />
       <WorkoutHistoryDrawer
         isOpen={isHistoryOpen}
         onClose={handleCloseHistory}
       />
+      <SettingsDrawer isOpen={isSettingsOpen} onClose={handleCloseSettings} />
     </>
   );
 }

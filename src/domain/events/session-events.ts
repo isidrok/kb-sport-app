@@ -8,6 +8,7 @@ export enum SessionState {
   PoseDetecting = "pose_detecting",
   StartCountdown = "start_countdown",
   Running = "running",
+  StopCountdown = "stop_countdown",
   Finished = "finished",
 }
 

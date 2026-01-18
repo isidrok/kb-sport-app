@@ -113,12 +113,14 @@ export class WorkoutStorageAdapter implements IWorkoutRepository {
   }
 
   private async getVideoFileWriter(
-    workoutId: string
+    workoutId: string,
+    format: string = "webm"
   ): Promise<FileSystemWritableFileStream> {
     const root = await this.getRoot();
     const appDir = await root.getDirectoryHandle("kb-sport-app");
     const workoutDir = await appDir.getDirectoryHandle(workoutId);
-    const fileHandle = await workoutDir.getFileHandle("video.webm", {
+    const extension = format === "mp4" ? "mp4" : "webm";
+    const fileHandle = await workoutDir.getFileHandle(`video.${extension}`, {
       create: true,
     });
     return await fileHandle.createWritable();
@@ -128,7 +130,10 @@ export class WorkoutStorageAdapter implements IWorkoutRepository {
 
   async startRecording(
     workoutId: string,
-    mediaStream: MediaStream
+    mediaStream: MediaStream,
+    recordAudio: boolean = true,
+    videoFormat: string = "webm",
+    videoQuality: string = "medium"
   ): Promise<void> {
     if (this.activeRecordings.has(workoutId)) {
       throw new Error(`Recording already active for workout: ${workoutId}`);
@@ -136,12 +141,37 @@ export class WorkoutStorageAdapter implements IWorkoutRepository {
 
     // Create workout directory and get file writer
     await this.createWorkoutDirectory(workoutId);
-    const fileWriter = await this.getVideoFileWriter(workoutId);
+    const fileWriter = await this.getVideoFileWriter(workoutId, videoFormat);
 
-    // Setup MediaRecorder
-    const mediaRecorder = new MediaRecorder(mediaStream, {
-      mimeType: "video/webm;codecs=vp8",
-      videoBitsPerSecond: 2500000,
+    // Clone stream and optionally remove audio tracks
+    let streamToRecord = mediaStream;
+    if (!recordAudio) {
+      streamToRecord = mediaStream.clone();
+      streamToRecord.getAudioTracks().forEach((track) => {
+        streamToRecord.removeTrack(track);
+      });
+    }
+
+    // Convert user-friendly settings to technical values
+    const mimeTypeMap: Record<string, string> = {
+      webm: "video/webm;codecs=vp8",
+      mp4: "video/mp4",
+    };
+
+    const bitrateMap: Record<string, number> = {
+      low: 1000000,
+      medium: 2500000,
+      high: 5000000,
+      veryhigh: 8000000,
+    };
+
+    const mimeType = mimeTypeMap[videoFormat] || "video/webm;codecs=vp8";
+    const videoBitrate = bitrateMap[videoQuality] || 2500000;
+
+    // Setup MediaRecorder with configurable settings
+    const mediaRecorder = new MediaRecorder(streamToRecord, {
+      mimeType: mimeType,
+      videoBitsPerSecond: videoBitrate,
     });
 
     // Track recording state for this workout
@@ -240,9 +270,16 @@ export class WorkoutStorageAdapter implements IWorkoutRepository {
     const root = await this.getRoot();
     const appDir = await root.getDirectoryHandle("kb-sport-app");
     const workoutDir = await appDir.getDirectoryHandle(workoutId);
-    const fileHandle = await workoutDir.getFileHandle("video.webm");
-    const file = await fileHandle.getFile();
-    return file;
+
+    // Try to find video file (could be .webm or .mp4)
+    try {
+      const fileHandle = await workoutDir.getFileHandle("video.webm");
+      return await fileHandle.getFile();
+    } catch {
+      // Try mp4 if webm doesn't exist
+      const fileHandle = await workoutDir.getFileHandle("video.mp4");
+      return await fileHandle.getFile();
+    }
   }
 
   async deleteWorkout(workoutId: string): Promise<void> {

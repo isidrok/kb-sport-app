@@ -13,8 +13,17 @@ import { WorkoutSummary } from "../types/workout-storage.types";
 export interface IWorkoutRepository {
   /**
    * Start recording video for a workout session
+   * @param recordAudio - Whether to include audio track in the recording (default: true)
+   * @param videoFormat - Video format: "webm" or "mp4" (default: "webm")
+   * @param videoQuality - Video quality: "low", "medium", "high", "veryhigh" (default: "medium")
    */
-  startRecording(workoutId: string, mediaStream: MediaStream): Promise<void>;
+  startRecording(
+    workoutId: string,
+    mediaStream: MediaStream,
+    recordAudio?: boolean,
+    videoFormat?: string,
+    videoQuality?: string
+  ): Promise<void>;
 
   /**
    * Stop recording and finalize the video file
