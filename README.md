@@ -2,16 +2,16 @@
 
 A workout tracking application that uses computer vision to automatically detect and count exercise repetitions in real-time using your webcam. **Works entirely in your browser** - no installation required, no data leaves your device.
 
-## Quick Start Checklist
+## Quick Start
 
-✅ Open the app in your browser  
-✅ Allow camera access  
-✅ Go to Settings → Set audio beep to **every 1 rep**  
-✅ Test: Raise your hand above your head and listen for beep  
-✅ Get comfortable with detection before your workout  
-✅ If device is slow: Lower FPS to 6-8 in Settings  
-✅ Stand upright for best detection  
-✅ Start your workout!
+1. [Open the app in your browser](https://isidrok.github.io/kb-sport-app/)
+2. Allow camera access  
+3. Go to Settings → Set audio beep to **every 1 rep**  
+4. Test: Raise your hand above your head and listen for beep  
+5. Get comfortable with detection before your workout  
+6. If device is slow: Lower FPS to 6-8 in Settings  
+7. Stand upright for best detection  
+8. Start your workout!
 
 ## What It Tracks
 
