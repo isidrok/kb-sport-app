@@ -14,8 +14,6 @@ export class SettingsEntity {
     this.validate();
   }
 
-  // ===== Getters =====
-
   get startCountdownSeconds(): number {
     return this.data.startCountdownSeconds;
   }
@@ -55,8 +53,6 @@ export class SettingsEntity {
   get audioFeedbackTimeInterval(): string | null {
     return this.data.audioFeedbackTimeInterval;
   }
-
-  // ===== Setters with validation =====
 
   setStartCountdownSeconds(seconds: number): void {
     this.data.startCountdownSeconds = Math.max(0, seconds);

@@ -33,6 +33,11 @@ import {
   beeperAdapter,
   type BeeperAdapter,
 } from "@/infrastructure/adapters/beeper.adapter";
+import { CountdownService } from "./services/countdown.service";
+import { AudioFeedbackService } from "./services/audio-feedback.service";
+import { VideoRecordingService } from "./services/video-recording.service";
+import { FrameProcessingService } from "./services/frame-processing.service";
+import { AutoStopService } from "./services/auto-stop.service";
 
 interface WorkoutSessionManagerDependencies {
   cameraAdapter: CameraAdapter;
@@ -54,29 +59,39 @@ interface WorkoutSessionManagerDependencies {
  * Responsibilities:
  * - State transitions and validation
  * - Camera and pose detection coordination
- * - Rep detection during Running state
- * - Countdown logic
- * - Video recording lifecycle
+ * - Orchestrating specialized services (countdown, audio, recording, etc.)
  * - Event emission for UI updates
  */
 export class WorkoutSessionManager {
   private state: SessionState = SessionState.Idle;
   private currentWorkout: WorkoutEntity | null = null;
-  private videoElement: HTMLVideoElement | null = null;
   private canvasElement: HTMLCanvasElement | null = null;
-  private frameProcessingRAF: number | null = null;
-  private lastFrameTime: number = 0;
-  private targetFrameInterval: number = 1000 / 12;
-  private countdownInterval: number | null = null;
   private timerInterval: number | null = null;
-  private countdownValue: number = 0;
-  private autoStopTimer: number | null = null;
-  private stopCountdownInterval: number | null = null;
-  private isVideoRecording: boolean = false;
-  private lastRepBeepCount: number = 0;
-  private lastTimeBeep: number = 0;
 
-  constructor(private dependencies: WorkoutSessionManagerDependencies) {}
+  // Specialized services
+  private startCountdownService: CountdownService; // For start countdown
+  private stopCountdownService: CountdownService; // For stop countdown
+  private audioFeedbackService: AudioFeedbackService;
+  private videoRecordingService: VideoRecordingService;
+  private frameProcessingService: FrameProcessingService;
+  private autoStopService: AutoStopService;
+
+  constructor(private dependencies: WorkoutSessionManagerDependencies) {
+    // Initialize services
+    this.startCountdownService = new CountdownService(dependencies.beeperAdapter);
+    this.stopCountdownService = new CountdownService(dependencies.beeperAdapter);
+    this.audioFeedbackService = new AudioFeedbackService(
+      dependencies.beeperAdapter
+    );
+    this.videoRecordingService = new VideoRecordingService(
+      dependencies.workoutRepo
+    );
+    this.frameProcessingService = new FrameProcessingService(
+      dependencies.predictionAdapter,
+      dependencies.rendererAdapter
+    );
+    this.autoStopService = new AutoStopService();
+  }
 
   /**
    * Start camera and frame processing
@@ -86,7 +101,6 @@ export class WorkoutSessionManager {
     videoElement: HTMLVideoElement,
     canvasElement: HTMLCanvasElement
   ): Promise<void> {
-    this.videoElement = videoElement;
     this.canvasElement = canvasElement;
 
     // Setup video and canvas dimensions
@@ -102,7 +116,15 @@ export class WorkoutSessionManager {
     await this.dependencies.cameraAdapter.start(videoElement);
 
     // Start frame processing loop
-    this.startFrameProcessing();
+    const settings = this.dependencies.settingsAdapter.loadSettings();
+    this.frameProcessingService.start(
+      videoElement,
+      canvasElement,
+      settings.fps,
+      {
+        onPrediction: (prediction) => this.handlePrediction(prediction),
+      }
+    );
 
     // Emit ready event
     this.dependencies.eventBus.publish(
@@ -196,7 +218,7 @@ export class WorkoutSessionManager {
         `workout_${new Date().toISOString()}`
       );
 
-      // Start countdown (3, 2, 1)
+      // Start countdown
       this.startCountdown();
     } catch (error) {
       // Cleanup on error
@@ -232,35 +254,26 @@ export class WorkoutSessionManager {
 
     const settings = this.dependencies.settingsAdapter.getSettings();
 
-    // Double beep on workout stop if audio feedback is enabled
-    if (settings.audioFeedbackEnabled) {
-      this.dependencies.beeperAdapter.doubleBeep();
-    }
+    // Double beep on workout stop
+    this.audioFeedbackService.playWorkoutStop(settings.audioFeedbackEnabled);
 
     // Stop the workout entity
     this.currentWorkout.stop();
 
-    // Stop timer, frame processing, and auto-stop timer
+    // Stop timer and auto-stop
     this.stopTimer();
-    this.stopFrameProcessing();
-    this.clearAutoStopTimer();
+    this.autoStopService.clear();
+
+    // Stop frame processing
+    this.frameProcessingService.stop();
 
     // Stop camera
     this.dependencies.cameraAdapter.stop();
 
     // Stop video recording and save if recording was active
-    let videoSize = 0;
-    if (this.isVideoRecording) {
-      try {
-        const { sizeInBytes } =
-          await this.dependencies.workoutRepo.stopRecording(
-            this.currentWorkout.id
-          );
-        videoSize = sizeInBytes;
-      } catch (error) {
-        console.error("Failed to stop video recording:", error);
-      }
-    }
+    const videoSize = await this.videoRecordingService.stopRecording(
+      this.currentWorkout.id
+    );
 
     // Always save workout metadata
     try {
@@ -272,8 +285,8 @@ export class WorkoutSessionManager {
       console.error("Failed to save workout:", error);
     }
 
-    // Reset state
-    this.isVideoRecording = false;
+    // Reset services
+    this.videoRecordingService.reset();
     this.dependencies.repDetectionService.reset();
 
     // Clear canvas
@@ -289,39 +302,16 @@ export class WorkoutSessionManager {
   }
 
   /**
-   * Process a single frame (called by frame processing loop)
+   * Handle prediction from frame processing
    */
-  private processFrame(): void {
-    if (!this.videoElement || !this.canvasElement) {
-      return;
-    }
-
-    // Get prediction from pose detection model
-    const result = this.dependencies.predictionAdapter.process(
-      this.videoElement
-    );
-
-    if (!result) {
-      return;
-    }
-
-    const { bestPrediction } = result;
-
-    // Render the prediction
-    this.dependencies.rendererAdapter.render({
-      source: this.videoElement,
-      target: this.canvasElement,
-      prediction: bestPrediction,
-      confidenceThreshold: 0.5,
-    });
-
+  private handlePrediction(prediction: Prediction): void {
     // Detect reps when Running or in StopCountdown
     if (
       (this.state === SessionState.Running ||
         this.state === SessionState.StopCountdown) &&
       this.currentWorkout
     ) {
-      this.detectRep(bestPrediction);
+      this.detectRep(prediction);
     }
   }
 
@@ -339,7 +329,15 @@ export class WorkoutSessionManager {
       this.currentWorkout.addRep(rep);
 
       // Check for rep-based audio feedback
-      this.checkRepAudioFeedback();
+      const settings = this.dependencies.settingsAdapter.getSettings();
+      this.audioFeedbackService.checkRepFeedback(
+        this.currentWorkout.getRepCount(),
+        {
+          enabled: settings.audioFeedbackEnabled,
+          repInterval: settings.audioFeedbackRepInterval,
+          timeInterval: settings.audioFeedbackTimeInterval,
+        }
+      );
 
       // Emit workout updated event
       this.emitWorkoutUpdate();
@@ -351,49 +349,25 @@ export class WorkoutSessionManager {
    */
   private startCountdown(): void {
     const settings = this.dependencies.settingsAdapter.getSettings();
-    this.countdownValue = settings.startCountdownSeconds;
 
-    // Skip countdown if set to 0
-    if (this.countdownValue === 0) {
-      this.completeCountdown();
-      return;
-    }
-
-    this.setState(SessionState.StartCountdown, this.countdownValue);
-
-    // Beep immediately if starting at 3 or less and audio feedback is enabled
-    if (this.countdownValue <= 3 && settings.audioFeedbackEnabled) {
-      this.dependencies.beeperAdapter.countdownBeep();
-    }
-
-    this.countdownInterval = window.setInterval(() => {
-      this.countdownValue--;
-
-      if (this.countdownValue > 0) {
-        // Update countdown
-        this.setState(SessionState.StartCountdown, this.countdownValue);
-
-        // Beep on last 3 seconds if audio feedback is enabled
-        if (this.countdownValue <= 3 && settings.audioFeedbackEnabled) {
-          this.dependencies.beeperAdapter.countdownBeep();
-        }
-      } else {
-        // Countdown complete - start the workout
-        this.completeCountdown();
-      }
-    }, 1000);
+    this.startCountdownService.startCountdown(
+      settings.startCountdownSeconds,
+      {
+        onCountdownTick: (value) => {
+          this.setState(SessionState.StartCountdown, value);
+        },
+        onCountdownComplete: () => {
+          this.completeCountdown();
+        },
+      },
+      settings.audioFeedbackEnabled
+    );
   }
 
   /**
    * Complete countdown and transition to Running state
    */
   private async completeCountdown(): Promise<void> {
-    // Clear countdown interval
-    if (this.countdownInterval !== null) {
-      clearInterval(this.countdownInterval);
-      this.countdownInterval = null;
-    }
-
     if (!this.currentWorkout) {
       throw new Error("No workout to start");
     }
@@ -403,92 +377,48 @@ export class WorkoutSessionManager {
     // Start the workout entity
     this.currentWorkout.start();
 
-    // Conditionally start video recording based on settings (always record audio)
-    if (settings.recordVideo) {
-      const mediaStream = this.dependencies.cameraAdapter.getStream();
-      if (mediaStream && this.currentWorkout) {
-        try {
-          await this.dependencies.workoutRepo.startRecording(
-            this.currentWorkout.id,
-            mediaStream,
-            settings.videoFormat,
-            settings.videoQuality
-          );
-          this.isVideoRecording = true;
-        } catch (error) {
-          console.warn("Failed to start video recording:", error);
-          this.isVideoRecording = false;
+    // Start video recording if enabled
+    const mediaStream = this.dependencies.cameraAdapter.getStream();
+    if (mediaStream && this.currentWorkout) {
+      await this.videoRecordingService.startRecording(
+        this.currentWorkout.id,
+        mediaStream,
+        {
+          enabled: settings.recordVideo,
+          format: settings.videoFormat,
+          quality: settings.videoQuality,
         }
-      }
+      );
     }
 
-    // Quick beep on workout start if audio feedback is enabled
-    if (settings.audioFeedbackEnabled) {
-      this.dependencies.beeperAdapter.quickBeep();
-    }
+    // Quick beep on workout start
+    this.audioFeedbackService.playWorkoutStart(settings.audioFeedbackEnabled);
 
-    // Reset rep detection state machine
+    // Reset services
     this.dependencies.repDetectionService.reset();
-
-    // Reset audio feedback tracking
-    this.lastRepBeepCount = 0;
-    this.lastTimeBeep = Date.now();
+    this.audioFeedbackService.reset();
 
     // Start timer for periodic updates
     this.startTimer();
 
     // Setup auto-stop if configured
-    this.setupAutoStop();
+    this.autoStopService.setup(
+      {
+        autoStopTime: settings.autoStopWorkoutTime,
+        stopCountdownSeconds: settings.stopWorkoutCountdown,
+      },
+      {
+        onStopCountdownStart: (seconds) => {
+          this.startStopCountdown(seconds);
+        },
+      }
+    );
 
     // Transition to Running state
     this.setState(SessionState.Running);
 
     // Emit initial stats
     this.emitWorkoutUpdate();
-  }
-
-  /**
-   * Start frame processing loop using requestAnimationFrame
-   */
-  private startFrameProcessing(): void {
-    if (this.frameProcessingRAF !== null) {
-      return;
-    }
-
-    // Get target FPS from settings
-    const settings = this.dependencies.settingsAdapter.loadSettings();
-    const targetFPS = settings.fps;
-    this.targetFrameInterval = 1000 / targetFPS;
-    
-    // Reset timing
-    this.lastFrameTime = performance.now();
-
-    // Start RAF loop
-    const frameLoop = (currentTime: number) => {
-      // Calculate time elapsed since last frame
-      const elapsed = currentTime - this.lastFrameTime;
-
-      // Only process frame if enough time has passed (throttle to target FPS)
-      if (elapsed >= this.targetFrameInterval) {
-        this.lastFrameTime = currentTime - (elapsed % this.targetFrameInterval);
-        this.processFrame();
-      }
-
-      // Schedule next frame (will auto-pause when tab is hidden)
-      this.frameProcessingRAF = requestAnimationFrame(frameLoop);
-    };
-
-    this.frameProcessingRAF = requestAnimationFrame(frameLoop);
-  }
-
-  /**
-   * Stop frame processing loop
-   */
-  private stopFrameProcessing(): void {
-    if (this.frameProcessingRAF !== null) {
-      cancelAnimationFrame(this.frameProcessingRAF);
-      this.frameProcessingRAF = null;
-    }
   }
 
   /**
@@ -502,7 +432,12 @@ export class WorkoutSessionManager {
     this.timerInterval = window.setInterval(() => {
       if (this.currentWorkout && this.currentWorkout.isActive()) {
         // Check for time-based audio feedback
-        this.checkTimeAudioFeedback();
+        const settings = this.dependencies.settingsAdapter.getSettings();
+        this.audioFeedbackService.checkTimeFeedback({
+          enabled: settings.audioFeedbackEnabled,
+          repInterval: settings.audioFeedbackRepInterval,
+          timeInterval: settings.audioFeedbackTimeInterval,
+        });
 
         // Emit workout update
         this.emitWorkoutUpdate();
@@ -552,35 +487,6 @@ export class WorkoutSessionManager {
   }
 
   /**
-   * Setup auto-stop timer if configured
-   */
-  private setupAutoStop(): void {
-    const settings = this.dependencies.settingsAdapter.getSettings();
-    const autoStopMs = settings.autoStopWorkoutTime
-      ? this.parseTimeToMs(settings.autoStopWorkoutTime)
-      : null;
-
-    if (!autoStopMs) {
-      return;
-    }
-
-    // Calculate when to start the stop countdown
-    // We display the countdown immediately, so we need to subtract (countdown * 1000)
-    // For example: if auto-stop is 15s and countdown is 5s, we start at 10s
-    // At 10s: display "5", at 11s: display "4", ..., at 15s: stop
-    // If countdown is null, just stop immediately at the auto-stop time
-    const stopCountdownSeconds = settings.stopWorkoutCountdown ?? 0;
-    const stopCountdownDuration = stopCountdownSeconds * 1000;
-    const timeUntilStopCountdown = autoStopMs - stopCountdownDuration;
-
-    if (timeUntilStopCountdown > 0) {
-      this.autoStopTimer = window.setTimeout(() => {
-        this.startStopCountdown(stopCountdownSeconds);
-      }, timeUntilStopCountdown);
-    }
-  }
-
-  /**
    * Start stop countdown before auto-stopping workout
    */
   private startStopCountdown(seconds: number): void {
@@ -588,126 +494,31 @@ export class WorkoutSessionManager {
       return;
     }
 
-    this.countdownValue = seconds;
     const settings = this.dependencies.settingsAdapter.getSettings();
 
-    // Transition to StopCountdown state
-    this.setState(SessionState.StopCountdown, this.countdownValue);
-
-    // Beep immediately if on last 3 seconds
-    if (this.countdownValue <= 3 && settings.audioFeedbackEnabled) {
-      this.dependencies.beeperAdapter.countdownBeep();
-    }
-
-    this.stopCountdownInterval = window.setInterval(() => {
-      this.countdownValue--;
-
-      if (this.countdownValue > 0) {
-        // Update countdown state
-        this.setState(SessionState.StopCountdown, this.countdownValue);
-
-        // Beep on last 3 seconds if audio feedback is enabled
-        if (this.countdownValue <= 3 && settings.audioFeedbackEnabled) {
-          this.dependencies.beeperAdapter.countdownBeep();
-        }
-      } else {
-        // Countdown complete - stop the workout
-        if (this.stopCountdownInterval !== null) {
-          clearInterval(this.stopCountdownInterval);
-          this.stopCountdownInterval = null;
-        }
-        this.stopWorkout();
-      }
-    }, 1000);
-  }
-
-  /**
-   * Clear auto-stop timer and stop countdown
-   */
-  private clearAutoStopTimer(): void {
-    if (this.autoStopTimer !== null) {
-      clearTimeout(this.autoStopTimer);
-      this.autoStopTimer = null;
-    }
-    if (this.stopCountdownInterval !== null) {
-      clearInterval(this.stopCountdownInterval);
-      this.stopCountdownInterval = null;
-    }
-  }
-
-  /**
-   * Check and trigger rep-based audio feedback
-   */
-  private checkRepAudioFeedback(): void {
-    if (!this.currentWorkout) {
-      return;
-    }
-
-    const settings = this.dependencies.settingsAdapter.getSettings();
-    if (!settings.audioFeedbackEnabled || !settings.audioFeedbackRepInterval) {
-      return;
-    }
-
-    const currentRepCount = this.currentWorkout.getRepCount();
-    const repsSinceLastBeep = currentRepCount - this.lastRepBeepCount;
-
-    if (repsSinceLastBeep >= settings.audioFeedbackRepInterval) {
-      this.dependencies.beeperAdapter.quickBeep();
-      this.lastRepBeepCount = currentRepCount;
-    }
-  }
-
-  /**
-   * Check and trigger time-based audio feedback
-   */
-  private checkTimeAudioFeedback(): void {
-    const settings = this.dependencies.settingsAdapter.getSettings();
-    if (!settings.audioFeedbackEnabled || !settings.audioFeedbackTimeInterval) {
-      return;
-    }
-
-    const intervalMs = this.parseTimeToMs(settings.audioFeedbackTimeInterval);
-    if (!intervalMs) {
-      return;
-    }
-
-    const now = Date.now();
-    const timeSinceLastBeep = now - this.lastTimeBeep;
-
-    if (timeSinceLastBeep >= intervalMs) {
-      this.dependencies.beeperAdapter.quickBeep();
-      this.lastTimeBeep = now;
-    }
-  }
-
-  /**
-   * Parse time string (mm:ss) to milliseconds
-   */
-  private parseTimeToMs(timeString: string): number {
-    const parts = timeString.split(":");
-    if (parts.length !== 2) {
-      return 0;
-    }
-    const minutes = parseInt(parts[0], 10);
-    const seconds = parseInt(parts[1], 10);
-    if (isNaN(minutes) || isNaN(seconds)) {
-      return 0;
-    }
-    return (minutes * 60 + seconds) * 1000;
+    this.stopCountdownService.startCountdown(
+      seconds,
+      {
+        onCountdownTick: (value) => {
+          this.setState(SessionState.StopCountdown, value);
+        },
+        onCountdownComplete: () => {
+          this.stopWorkout();
+        },
+      },
+      settings.audioFeedbackEnabled
+    );
   }
 
   /**
    * Cleanup resources
    */
   private cleanup(): void {
-    this.stopFrameProcessing();
+    this.frameProcessingService.stop();
     this.stopTimer();
-    this.clearAutoStopTimer();
-
-    if (this.countdownInterval !== null) {
-      clearInterval(this.countdownInterval);
-      this.countdownInterval = null;
-    }
+    this.autoStopService.clear();
+    this.startCountdownService.stopCountdown();
+    this.stopCountdownService.stopCountdown();
 
     this.dependencies.cameraAdapter.stop();
 
@@ -715,9 +526,8 @@ export class WorkoutSessionManager {
       this.dependencies.rendererAdapter.clear(this.canvasElement);
     }
 
-    this.videoElement = null;
     this.canvasElement = null;
-    this.isVideoRecording = false;
+    this.videoRecordingService.reset();
   }
 
   /**

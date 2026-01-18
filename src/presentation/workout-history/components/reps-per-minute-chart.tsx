@@ -8,6 +8,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+// @ts-expect-error - Legend export has type issues in recharts 2.15.3
+import { Legend } from "recharts";
 import styles from "./reps-per-minute-chart.module.css";
 
 interface RepsPerMinuteChartProps {
@@ -103,6 +105,12 @@ export function RepsPerMinuteChart({ metadata }: RepsPerMinuteChartProps) {
               borderRadius: "8px",
             }}
           />
+          <Legend
+            wrapperStyle={{
+              paddingTop: "10px",
+            }}
+            iconType="line"
+          />
           {hasLeft && (
             <Line
               type="monotone"
@@ -129,7 +137,7 @@ export function RepsPerMinuteChart({ metadata }: RepsPerMinuteChartProps) {
             <Line
               type="monotone"
               dataKey="both"
-              stroke="#16a34a"
+              stroke="#8b5cf6"
               name="Both Hands"
               strokeWidth={2}
               dot={{ r: 4 }}
