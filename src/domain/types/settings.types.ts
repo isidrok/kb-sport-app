@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   startCountdownSeconds: 5,
   autoStopWorkoutTime: null,
   stopWorkoutCountdown: null,
-  fps: 20,
+  fps: 12,
 
   // Recording
   recordVideo: true,

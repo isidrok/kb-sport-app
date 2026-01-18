@@ -174,7 +174,7 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                 type="number"
                 min="1"
                 max="60"
-                placeholder="20"
+                placeholder="12"
                 value={formData.fps || ""}
                 onChange={(e) => {
                   const val = (e.target as HTMLInputElement).value;
@@ -184,7 +184,7 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
                   // Apply default if field is empty or invalid on blur
                   const val = (e.target as HTMLInputElement).value;
                   if (!val || parseInt(val, 10) < 1) {
-                    updateField("fps", 20);
+                    updateField("fps", 12);
                   }
                 }}
                 className={styles.input}
