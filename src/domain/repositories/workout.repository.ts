@@ -1,5 +1,8 @@
 import { WorkoutEntity } from "../entities/workout-entity";
-import { WorkoutSummary, WorkoutMetadata } from "../types/workout-storage.types";
+import {
+  WorkoutSummary,
+  WorkoutMetadata,
+} from "../types/workout-storage.types";
 
 /**
  * Repository interface for workout persistence operations.
